@@ -8,7 +8,7 @@ async function generateDefaultHostSettings() {
       const hosts = await getSshHosts();
       
       // Get current settings
-      const config = vscode.workspace.getConfiguration('sshNavigator');
+      const config = vscode.workspace.getConfiguration('daSSHboard');
       let hostsConfig = config.get<Record<string, HostSettings>>('hosts') || {};
       let settingsUpdated = false;
       
@@ -236,7 +236,7 @@ function resolveHostnameToIp(hostname: string): Promise<string> {
 * Gets settings for a specific host from VS Code settings.
 */
 function getHostSettings(host: string): HostSettings {
-  const config = vscode.workspace.getConfiguration('sshNavigator');
+  const config = vscode.workspace.getConfiguration('daSSHboard');
   const hostsConfig = config.get<Record<string, HostSettings>>('hosts') || {};
   
   // Return existing settings if found
@@ -252,11 +252,6 @@ function getHostSettings(host: string): HostSettings {
   };
 }
 
-/**
-* Generates the HTML content for the custom welcome dashboard webview.
-* It takes an array of SSH host configs and creates a grid of host cards
-* with options to open different folders in current window or new window.
-*/
 /**
 * Generates the HTML content for the custom welcome dashboard webview.
 * It takes an array of SSH host configs and creates a grid of host cards
@@ -347,7 +342,7 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SSH Navigator</title>
+<title>DaSSHboard</title>
 <style>
   body {
     background-color: var(--vscode-editor-background);
@@ -396,7 +391,7 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
 
   .host-card:hover {
     background-color: var(--vscode-list-hoverBackground);
-    border-color: var(--vscode-focusBorder, rgba(0, 120, 212, 0.4));
+    border-color: var(--host-color), rgba(0, 120, 212, 0.4));
   }
 
   .host-header {
@@ -420,7 +415,8 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
   
   /* Default colored SVG styling - uses the same color as heading */
   .default-colored-svg {
-    filter: brightness(0) saturate(100%); /* First make it black */
+    filter: brightness(0) saturate(100%) invert(50%) sepia(40%) saturate(1000%) hue-rotate(175deg) brightness(100%) contrast(95%);
+    /* This filter approximates the VSCode link color - will be overridden by the theme */
     color: var(--vscode-textLink-foreground);
   }
   
@@ -430,14 +426,13 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
   }
 
   .action-button.host-colored img {
-    filter: brightness(0) saturate(100%); /* First make it black */
     filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(calc(var(--host-color-hue) * 1deg)) brightness(104%) contrast(97%);
   }
   
   /* Style for action buttons that use default color */
   .action-button.default-colored img {
-    filter: brightness(0) saturate(100%); /* First make it black */
-    color: var(--vscode-textLink-foreground);
+    filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(calc(var(--vscode-textLink-foreground) * 1deg)) brightness(104%) contrast(97%);
+    /* This filter approximates the VSCode link color - will be overridden by the theme */
   }
 
   .host-card h2 {
@@ -582,6 +577,8 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
 </footer>
 <script>
   const vscode = acquireVsCodeApi();
+  
+  function openFolder(host, folder, newWindow) {
       vscode.postMessage({
           command: 'openFolder',
           host: host,
@@ -601,7 +598,7 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
           command: 'openDaSSHboardSetting'
       });
   }
-  </script>
+</script>
 </body>
 </html>`;
 }
@@ -611,14 +608,14 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
 * This method is called when your extension is activated.
 */
 export function activate(context: vscode.ExtensionContext) {
-  console.log('Congratulations, your extension "remotesshwelcome" is now active!');
+  console.log('Congratulations, your extension "dasshboard" is now active!');
   generateDefaultHostSettings().catch(error => {
       console.error('Error during settings initialization:', error);
   });
   // Command to show the custom welcome dashboard
-  const showDashboardDisposable = vscode.commands.registerCommand('remotesshwelcome.showDashboard', async () => {
+  const showDashboardDisposable = vscode.commands.registerCommand('dasshboard.showDashboard', async () => {
       const panel = vscode.window.createWebviewPanel(
-          'remotesshwelcome',           // Identifies the type of the webview.
+          'dasshboard',           // Identifies the type of the webview.
           'Remote SSH Welcome',          // Title of the panel.
           vscode.ViewColumn.One,         // Editor column to show the new webview panel in.
           {
@@ -635,7 +632,7 @@ export function activate(context: vscode.ExtensionContext) {
           message => {
               switch (message.command) {
                   case 'openFolder':
-                      vscode.commands.executeCommand('remotesshwelcome.openFolder', 
+                      vscode.commands.executeCommand('dasshboard.openFolder', 
                           message.host, 
                           message.folder, 
                           message.newWindow);
@@ -647,7 +644,7 @@ export function activate(context: vscode.ExtensionContext) {
                       });
                       return;
                   case 'openDaSSHboardSetting':
-                      vscode.commands.executeCommand('workbench.action.openSettings', 'sshNavigator');
+                      vscode.commands.executeCommand('workbench.action.openSettings', 'daSSHboard');
                       return;
               }
           },
@@ -659,7 +656,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(showDashboardDisposable);
 
   // Command to open a specific folder remotely for a given host alias.
-  const openFolderDisposable = vscode.commands.registerCommand('remotesshwelcome.openFolder', (host: string, folder: string, newWindow: boolean = false) => {
+  const openFolderDisposable = vscode.commands.registerCommand('dasshboard.openFolder', (host: string, folder: string, newWindow: boolean = false) => {
       // Construct a remote URI of the form: vscode-remote://ssh-remote+<host>/path
       const remoteUri = vscode.Uri.parse(`vscode-remote://ssh-remote+${host}${folder}`);
       // Pass the newWindow parameter to determine whether to open in current window or new window

@@ -3,10 +3,11 @@
   "displayName": "DaSSHboard",
   "description": "A stylish dashboard for quickly connecting to SSH hosts with customizable settings",
   "version": "1.0.0",
-  "publisher": "alberto-rota",
+  "publisher": "AlbertoRota",
   "engines": {
     "vscode": "^1.70.0"
   },
+  "repository": "https://github.com/alberto-rota/DaSSHboard",
   "categories": [
     "Other"
   ],
@@ -23,25 +24,25 @@
     "theme": "dark"
   },
   "activationEvents": [
-    "*"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "remotesshwelcome.showDashboard",
+        "command": "dasshboard.showDashboard",
         "title": "Show SSH Navigator Dashboard"
       }
     ],
     "configuration": {
       "title": "DaSSHboard",
       "properties": {
-        "sshNavigator.openAtStartup": {
+        "daSSHboard.openAtStartup": {
           "type": "boolean",
           "default": true,
           "description": "Automatically open the DaSSHboard when VS Code starts"
         },
-        "sshNavigator.hosts": {
+        "daSSHboard.hosts": {
           "type": "object",
           "description": "Custom settings for SSH hosts",
           "additionalProperties": {
