@@ -289,9 +289,15 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
                   iconFileName += '.svg';
               }
               
+              // Create paths for both regular and white versions of the icon
               const hostIconPath = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'hosts', iconFileName));
-              const iconClass = host.settings.color ? 'custom-colored-svg' : 'default-colored-svg';
-              hostIconHtml = `<img src="${hostIconPath}" class="host-icon ${iconClass}" ${host.settings.color ? iconColorStyle : ''} alt="${host.name} icon" />`;
+              const hostIconWhitePath = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'hosts', `${host.settings.icon}_white.svg`));
+              
+              const iconClass = host.settings.color ? 'custom-colored-svg' : 'theme-colored-svg';
+              hostIconHtml = `
+                <img src="${hostIconPath}" class="host-icon ${iconClass} light-theme-only" ${host.settings.color ? iconColorStyle : ''} alt="${host.name} icon" />
+                <img src="${hostIconWhitePath}" class="host-icon ${iconClass} dark-theme-only" ${host.settings.color ? iconColorStyle : ''} alt="${host.name} icon" />
+              `;
           }
           
           // Display user@hostname if user is available
@@ -407,6 +413,31 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
     margin-right: 8px;
   }
   
+  /* Theme detection for icon visibility */
+  body.vscode-light .light-theme-only {
+    display: inline-block;
+  }
+  
+  body.vscode-light .dark-theme-only {
+    display: none;
+  }
+  
+  body.vscode-dark .light-theme-only {
+    display: none;
+  }
+  
+  body.vscode-dark .dark-theme-only {
+    display: inline-block;
+  }
+  
+  body.vscode-high-contrast .light-theme-only {
+    display: none;
+  }
+  
+  body.vscode-high-contrast .dark-theme-only {
+    display: inline-block;
+  }
+  
   /* Custom colored SVG styling */
   .custom-colored-svg {
     filter: brightness(0) saturate(100%); /* First make it black */
@@ -414,10 +445,8 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
   }
   
   /* Default colored SVG styling - uses the same color as heading */
-  .default-colored-svg {
-    filter: brightness(0) saturate(100%) invert(50%) sepia(40%) saturate(1000%) hue-rotate(175deg) brightness(100%) contrast(95%);
-    /* This filter approximates the VSCode link color - will be overridden by the theme */
-    color: var(--vscode-textLink-foreground);
+  .theme-colored-svg {
+    /* Uses VS Code theme colors */
   }
   
   /* Style for action buttons that inherit host color */
@@ -431,8 +460,7 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
   
   /* Style for action buttons that use default color */
   .action-button.default-colored img {
-    filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(calc(var(--vscode-textLink-foreground) * 1deg)) brightness(104%) contrast(97%);
-    /* This filter approximates the VSCode link color - will be overridden by the theme */
+    color: #ff0000;
   }
 
   .host-card h2 {
