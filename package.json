@@ -1,48 +1,94 @@
 {
-  "name": "remotesshwelcome",
-  "displayName": "RemoteSSHWelcome",
-  "description": "",
-  "version": "0.0.1",
+  "name": "dasshboard",
+  "displayName": "DaSSHboard",
+  "description": "A stylish dashboard for quickly connecting to SSH hosts with customizable settings",
+  "version": "1.0.0",
+  "publisher": "alberto-rota",
   "engines": {
-    "vscode": "^1.99.0"
+    "vscode": "^1.70.0"
   },
   "categories": [
     "Other"
   ],
+  "keywords": [
+    "ssh",
+    "remote",
+    "dashboard",
+    "welcome",
+    "connection"
+  ],
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#2C3E50",
+    "theme": "dark"
+  },
   "activationEvents": [
-    "onStartupFinished",
-    "onCommand:remotesshwelcome.showDashboard"
+    "*"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "remotesshwelcome.showDashboard",
-        "title": "RemoteSSHWelcome: Show Dashboard"
-      },
-      {
-        "command": "remotesshwelcome.helloWorld",
-        "title": "RemoteSSHWelcome: Hello World"
+        "title": "Show SSH Navigator Dashboard"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "DaSSHboard",
+      "properties": {
+        "sshNavigator.openAtStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically open the DaSSHboard when VS Code starts"
+        },
+        "sshNavigator.hosts": {
+          "type": "object",
+          "description": "Custom settings for SSH hosts",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "folders": {
+                "type": "array",
+                "description": "List of folders to connect to on this host (defaults to /home/username)",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "color": {
+                "type": "string",
+                "description": "Custom background color for this host (CSS color)",
+                "pattern": "^(#[0-9a-fA-F]{3,8}|rgba?\\(.*\\)|hsla?\\(.*\\)|[a-zA-Z]+)$"
+              },
+              "icon": {
+                "type": "string",
+                "description": "Custom icon for this host (filename in extension's media/hosts folder without .svg extension)"
+              }
+            }
+          },
+          "default": {}
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.99.0",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
-    "@typescript-eslint/eslint-plugin": "^8.28.0",
-    "@typescript-eslint/parser": "^8.28.0",
-    "eslint": "^9.23.0",
-    "typescript": "^5.8.2",
-    "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1"
+    "@types/vscode": "^1.70.0",
+    "@types/glob": "^7.2.0",
+    "@types/mocha": "^9.1.1",
+    "@types/node": "16.x",
+    "@typescript-eslint/eslint-plugin": "^5.31.0",
+    "@typescript-eslint/parser": "^5.31.0",
+    "eslint": "^8.20.0",
+    "glob": "^8.0.3",
+    "mocha": "^10.0.0",
+    "typescript": "^4.7.4",
+    "@vscode/test-electron": "^2.1.5"
   }
 }
