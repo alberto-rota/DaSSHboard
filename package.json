@@ -2,7 +2,7 @@
   "name": "dasshboard",
   "displayName": "DaSSHboard",
   "description": "A stylish dashboard for quickly connecting to SSH hosts with customizable settings",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "publisher": "AlbertoRota",
   "engines": {
     "vscode": "^1.70.0"
