@@ -31,7 +31,7 @@
     "commands": [
       {
         "command": "dasshboard.showDashboard",
-        "title": "Show SSH Navigator Dashboard"
+        "title": "Show DaSSHboard"
       }
     ],
     "configuration": {
