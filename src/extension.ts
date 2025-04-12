@@ -560,7 +560,9 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
     justify-content: center;
     align-items: center;
     padding: 20px 0;
+    margin: 20px 0;
     width: 100%;
+    gap: 20px; /* This adds space between flex items */
   }
   
   .config-button {
@@ -587,7 +589,7 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
     ${hostCards}
   </div>
 </div>
-<footer align-items: center>
+<footer align-items: center, gap: 20px>
   <button class="config-button" onclick="openSshConfig()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
@@ -644,7 +646,7 @@ export function activate(context: vscode.ExtensionContext) {
   const showDashboardDisposable = vscode.commands.registerCommand('dasshboard.showDashboard', async () => {
       const panel = vscode.window.createWebviewPanel(
           'dasshboard',           // Identifies the type of the webview.
-          'Remote SSH Welcome',          // Title of the panel.
+          'DaSSHboard',          // Title of the panel.
           vscode.ViewColumn.One,         // Editor column to show the new webview panel in.
           {
               enableScripts: true,       // Enable JavaScript in the webview
