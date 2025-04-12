@@ -18,7 +18,7 @@
     "welcome",
     "connection"
   ],
-  "icon": "media/icon.png",
+  "icon": "media/readme/icon.png",
   "galleryBanner": {
     "color": "#2C3E50",
     "theme": "dark"
