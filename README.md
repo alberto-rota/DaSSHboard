@@ -34,7 +34,7 @@ You can also download the `.vsix` file and drag and drop it directly into the ex
   >
     🔌 Install from Marketplace
   </a>
-  <a href="https://github.com/alberto-rota/DaSSHboard/raw/main/dasshboard-latest.vsix"
+  <a href="https://github.com/alberto-rota/DaSSHboard/raw/master/dasshboard-latest.vsix"
      style="
        display: inline-block;
        background: linear-gradient(135deg, #fd6875, #007acc);
