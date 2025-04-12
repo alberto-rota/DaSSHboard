@@ -9,6 +9,11 @@
 DaSSHboard is a stylish, intuitive dashboard for VS Code that puts your SSH connections at your fingertips. Never waste time typing SSH commands or hunting for host details again!
 
 ![Overview](overview.png)
+<div align="center">
+  <a href="https://github.com/alberto-rota/DaSSHboard/raw/main/dasshboard.vsix" style="display: inline-block; background-color: #2980b9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+    ⬇️ Download Latest Release
+  </a>
+</div>
 
 ## ✨ Features
 
@@ -52,7 +57,7 @@ Customize via VS Code settings (File > Preferences > Settings):
 
 DaSSHboard includes several built-in icons for your connections. The icons automatically adapt to your system theme.
 
-<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 20px; margin: 20px 0;">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); grid-auto-rows: auto; grid-auto-flow: row; gap: 20px; margin: 20px 0; width: 100%; min-width: 0;">
   <div style="text-align: center;">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="media/readme/analytics_white.png">
