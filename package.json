@@ -2,8 +2,11 @@
   "name": "dasshboard",
   "displayName": "DaSSHboard",
   "description": "A stylish dashboard for quickly connecting to SSH hosts with customizable settings",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "publisher": "AlbertoRota",
+
+  "extensionKind": ["ui"],
+
   "engines": {
     "vscode": "^1.70.0"
   },
@@ -27,6 +30,7 @@
     "*"
   ],
   "main": "./out/extension.js",
+
   "contributes": {
     "commands": [
       {
@@ -34,6 +38,16 @@
         "title": "Show DaSSHboard"
       }
     ],
+
+    "menus": {
+      "statusBar/remoteIndicator": [
+        {
+          "command": "dasshboard.showDashboard",
+          "group": "1_dasshboard"
+        }
+      ]
+    },
+
     "configuration": {
       "title": "DaSSHboard",
       "properties": {
@@ -88,6 +102,7 @@
       }
     }
   },
+
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",

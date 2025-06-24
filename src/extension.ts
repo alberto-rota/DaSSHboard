@@ -258,6 +258,8 @@ function getHostSettings(host: string): HostSettings {
 * with options to open different folders in current window or new window.
 */
 function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webview: vscode.Webview): string {
+  const isRemote = vscode.env.remoteName === 'ssh-remote';  // ← new
+
   let hostCards = '';
   if (hosts.length === 0) {
       hostCards = `<p class="no-hosts">No SSH hosts found in your ~/.ssh/config file.</p>`;
@@ -281,24 +283,57 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
           }
           
           // Custom host icon if specified
+          // ▒▒ Custom host icon  ▒▒
           let hostIconHtml = '';
+
           if (host.settings.icon) {
-              // Add .svg extension if not already present
-              let iconFileName = host.settings.icon;
-              if (!iconFileName.toLowerCase().endsWith('.svg')) {
-                  iconFileName += '.svg';
-              }
-              
-              // Create paths for both regular and white versions of the icon
-              const hostIconPath = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'hosts', iconFileName));
-              const hostIconWhitePath = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'hosts', `${host.settings.icon}_white.svg`));
-              
+
+            /* ─── 1 ▸ “codicon:” or “$(cloud)” syntax  ─── */
+            const codiconMatch = host.settings.icon
+                .match(/^\$\((.+)\)$|^codicon:(.+)$/i);
+
+            if (codiconMatch) {
+              const codicon = (codiconMatch[1] || codiconMatch[2]).trim();
+              const baseUrl = 'https://raw.githubusercontent.com/microsoft/vscode-codicons/main/src/icons';
+              const svgUrl  = `${baseUrl}/${codicon}.svg`;
+
               const iconClass = host.settings.color ? 'custom-colored-svg' : 'theme-colored-svg';
+
+              /* one SVG works for both themes; we recolour with filters */
               hostIconHtml = `
-                <img src="${hostIconPath}" class="host-icon ${iconClass} light-theme-only" ${host.settings.color ? iconColorStyle : ''} alt="${host.name} icon" />
-                <img src="${hostIconWhitePath}" class="host-icon ${iconClass} dark-theme-only" ${host.settings.color ? iconColorStyle : ''} alt="${host.name} icon" />
-              `;
+                <img src="${svgUrl}"
+                     class="host-icon ${iconClass}"
+                     ${host.settings.color ? iconColorStyle : ''}
+                     alt="${codicon} icon" />`;
+            }
+
+            /* ─── 2 ▸ otherwise treat value as local SVG filename (existing logic) ─── */
+            else {
+              let iconFileName = host.settings.icon.endsWith('.svg')
+                                 ? host.settings.icon
+                                 : `${host.settings.icon}.svg`;
+
+              const hostIconPath = webview.asWebviewUri(
+                  vscode.Uri.joinPath(extensionUri, 'media', 'hosts', iconFileName));
+              const hostIconWhitePath = webview.asWebviewUri(
+                  vscode.Uri.joinPath(extensionUri, 'media', 'hosts',
+                                      `${path.parse(iconFileName).name}_white.svg`));
+
+              const iconClass = host.settings.color ? 'custom-colored-svg' : 'theme-colored-svg';
+
+              hostIconHtml = `
+                <img src="${hostIconPath}"
+                     class="host-icon ${iconClass} light-theme-only"
+                     ${host.settings.color ? iconColorStyle : ''}
+                     alt="${host.name} icon" />
+                <img src="${hostIconWhitePath}"
+                     class="host-icon ${iconClass} dark-theme-only"
+                     ${host.settings.color ? iconColorStyle : ''}
+                     alt="${host.name} icon" />`;
+            }
           }
+
+
           
           // Display user@hostname if user is available
           const connectionDetail = host.user 
@@ -343,12 +378,24 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
       }
   }
 
+  /* extra button (remote-only) */
+  const closeRemoteButtonHtml = isRemote ? `
+    <button class="config-button close-remote-button" onclick="closeRemote()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 17L7 7"></path><path d="M7 17l10-10"></path>
+      </svg>
+      Close Remote connection
+    </button>` : '';
+  const codiconCss = webview.asWebviewUri(
+  vscode.Uri.joinPath(extensionUri, 'media', 'codicon.css')
+);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DaSSHboard</title>
+<link href="${codiconCss}" rel="stylesheet" />
 <style>
   body {
     background-color: var(--vscode-editor-background);
@@ -581,6 +628,18 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
   .config-button:hover {
     background-color: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
   }
+
+  /* new style for red “close remote” button */
+  .close-remote-button {
+    background-color: var(--vscode-inputValidation-errorBackground, #d9534f);
+    color: var(--vscode-inputValidation-errorForeground, #ffffff);
+    border: 1px solid transparent;
+    transition: border-color 0.2s ease;
+  }
+
+  .close-remote-button:hover {
+    border-color: var(--vscode-inputValidation-errorBorder, #c9302c);
+  }
 </style>
 </head>
 <body>
@@ -598,12 +657,12 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
     Open SSH Config
   </button>
   <button class="config-button" onclick="openDaSSHboardSetting()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
-    </svg>
-    Open DaSSHboard settings
-  </button>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+  </svg>
+  Open DaSSHboard settings
+</button>
+  ${closeRemoteButtonHtml}
 </footer>
 <script>
   const vscode = acquireVsCodeApi();
@@ -628,6 +687,12 @@ function getWebviewContent(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
           command: 'openDaSSHboardSetting'
       });
   }
+
+  function closeRemote() {
+      vscode.postMessage({
+          command: 'closeRemote'
+      });
+  }
 </script>
 </body>
 </html>`;
@@ -642,6 +707,25 @@ export function activate(context: vscode.ExtensionContext) {
   generateDefaultHostSettings().catch(error => {
       console.error('Error during settings initialization:', error);
   });
+
+  /* status-bar button (next to Remote indicator) */
+  /* status-bar button: always 2nd from the left (just after Remote) */
+  const cfg       = vscode.workspace.getConfiguration('daSSHboard');
+  const iconId    = cfg.get<string>('statusBarIcon', 'gripper'); // codicon name
+  const sbPriority =  10000000;   // Remote indicator is 100, so we take 99
+
+  const sb = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left,
+    sbPriority
+  );
+  sb.name    = 'DaSSHboard';
+  sb.text    = `$(${iconId}) DaSSHboard`;
+  sb.tooltip = 'Show DaSSHboard';
+  sb.command = 'dasshboard.showDashboard';
+  sb.show();
+  context.subscriptions.push(sb);
+
+
   // Command to show the custom welcome dashboard
   const showDashboardDisposable = vscode.commands.registerCommand('dasshboard.showDashboard', async () => {
       const panel = vscode.window.createWebviewPanel(
@@ -675,6 +759,9 @@ export function activate(context: vscode.ExtensionContext) {
                       return;
                   case 'openDaSSHboardSetting':
                       vscode.commands.executeCommand('workbench.action.openSettings', 'daSSHboard');
+                      return;
+                  case 'closeRemote':
+                      vscode.commands.executeCommand('workbench.action.remote.close');
                       return;
               }
           },
