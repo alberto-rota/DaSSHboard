@@ -1,0 +1,809 @@
+body {
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: "Segoe UI", sans-serif;
+  padding: 20px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  justify-content: center;
+}
+
+.container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 20px 0;
+  gap: 40px;
+}
+
+.section {
+  width: 100%;
+  max-width: 1400px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--vscode-editorWidget-border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--vscode-foreground);
+  position: relative;
+}
+
+.section-title svg {
+  opacity: 0.7;
+}
+
+.section-count {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.ssh-section-title .section-count {
+  background-color: var(--section-color, var(--vscode-textLink-foreground)); 
+  color: var(--vscode-statusBarItem-remoteBackground);
+}
+
+.wsl-section-title .section-count {
+  background-color: var(--section-color, var(--vscode-textLink-foreground)); 
+  color: var(--vscode-statusBarItem-remoteBackground);
+}
+
+.docker-section-title .section-count {
+  background-color: var(--vscode-charts-blue, var(--vscode-textLink-foreground));
+  color: var(--vscode-badge-foreground, #ffffff);
+}
+
+.ssh-section-title {
+  color: var(--section-color, var(--vscode-textLink-foreground));
+  background-color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.wsl-section-title {
+  color: var(--section-color, var(--vscode-textLink-foreground));
+  background-color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.docker-section-title {
+  color: var(--vscode-charts-blue, var(--vscode-textLink-foreground));
+}
+
+.host-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 30px;
+  width: 100%;
+  justify-content: center;
+  perspective: 1000px;
+}
+
+.host-card {
+  background-color: var(--vscode-sideBar-background);
+  color: var(--vscode-editor-foreground);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px var(--vscode-widget-shadow);
+  transition: border-color 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid transparent;
+}
+
+.host-card:hover {
+  background-color: var(--vscode-list-hoverBackground);
+  border-left: 4px solid var(--host-color, var(--vscode-textLink-foreground));
+}
+
+.host-header {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+  position: relative;
+  gap: 8px;
+}
+
+.host-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.host-name-container {
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+  gap: 8px;
+}
+
+.host-connection-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.host-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+}
+
+.lucide-icon {
+  display: inline-block;
+  vertical-align: middle;
+  stroke-width: 2;
+  stroke: currentColor;
+  fill: none;
+}
+
+.lucide-icon svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none;
+}
+
+.lucide-icon-preview {
+  display: block;
+  margin: 0 auto;
+  stroke-width: 2;
+  stroke: currentColor;
+  fill: none;
+  color: var(--vscode-foreground);
+}
+
+.lucide-icon-preview svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none;
+}
+
+.clickable-host-icon {
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.clickable-host-icon:hover {
+  opacity: 0.8;
+  transform: scale(1.1);
+}
+
+/* Theme detection for icon visibility */
+body.vscode-light .light-theme-only {
+  display: inline-block;
+}
+
+body.vscode-light .dark-theme-only {
+  display: none;
+}
+
+body.vscode-dark .light-theme-only {
+  display: none;
+}
+
+body.vscode-dark .dark-theme-only {
+  display: inline-block;
+}
+
+body.vscode-high-contrast .light-theme-only {
+  display: none;
+}
+
+body.vscode-high-contrast .dark-theme-only {
+  display: inline-block;
+}
+
+/* Custom colored SVG styling */
+.custom-colored-svg {
+  filter: brightness(0) saturate(100%); /* First make it black */
+  filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(calc(var(--host-color-hue) * 1deg)) brightness(104%) contrast(97%);
+}
+
+/* Default colored SVG styling - uses textLink color */
+/* The icon is wrapped in a container, and the inner span uses the image as a mask */
+.theme-colored-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 8px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.theme-colored-icon-wrapper .theme-colored-svg {
+  width: 28px;
+  height: 28px;
+  display: block;
+  /* Use the image as a mask */
+  mask-image: var(--icon-src);
+  -webkit-mask-image: var(--icon-src);
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-position: center;
+  /* The background color (textLink) will show through the mask */
+  background-color: var(--vscode-textLink-foreground);
+  /* Remove any filters */
+  filter: none;
+  opacity: 1;
+}
+
+/* Fallback for icons not in wrapper (shouldn't happen, but just in case) */
+.theme-colored-svg {
+  filter: brightness(0) saturate(100%);
+  opacity: 1;
+}
+
+/* Style for action buttons that inherit host color */
+.action-button.host-colored {
+  color: var(--host-color);
+}
+
+.action-button.host-colored img {
+  filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(calc(var(--host-color-hue) * 1deg)) brightness(104%) contrast(97%);
+}
+
+/* Style for action buttons that use default color - make icons match button foreground for proper contrast */
+.action-button.default-colored {
+  color: var(--vscode-button-foreground);
+}
+
+/* Convert icons to white/light color to contrast with colored button backgrounds */
+/* This ensures icons are visible against button backgrounds (which are typically colored) */
+.action-button.default-colored img {
+  filter: brightness(0) saturate(100%) invert(1);
+  opacity: 0.95;
+}
+
+/* Ensure icons are fully visible on hover */
+.action-button:hover img {
+  opacity: 1;
+}
+
+/* For host-colored buttons, also ensure good visibility on hover */
+.action-button.host-colored:hover img {
+  opacity: 1;
+}
+
+.host-card h2.host-name {
+  color: var(--vscode-textLink-foreground);
+  margin: 0;
+  flex-grow: 1;
+}
+
+.host-connection {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+}
+
+.host-type-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid;
+}
+
+.ssh-badge {
+  background-color: var(--section-color, var(--vscode-textLink-foreground));
+  color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
+  border-color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
+}
+
+.wsl-badge {
+  background-color: var(--section-color, var(--vscode-textLink-foreground));
+  color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
+  border-color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
+}
+
+/* Apply section color to badges within the section */
+.ssh-section .ssh-badge {
+  background-color: var(--section-color, var(--vscode-textLink-foreground));
+  color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
+  border-color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
+}
+
+.wsl-section .wsl-badge {
+  background-color: var(--section-color, var(--vscode-textLink-foreground));
+  color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
+  border-color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
+}
+
+.docker-badge {
+  background-color: var(--vscode-charts-blue, var(--vscode-badge-background));
+  color: var(--vscode-badge-foreground);
+}
+
+.wsl-host {
+  border-left: 4px solid var(--vscode-statusBarItem-remoteBackground, var(--vscode-textLink-foreground));
+}
+
+.ssh-host {
+  border-left: 4px solid var(--vscode-statusBarItem-remoteBackground, var(--vscode-textLink-foreground));
+}
+
+.docker-host {
+  border-left: 3px solid var(--vscode-charts-blue, var(--vscode-textLink-foreground));
+}
+
+.folders-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  align-items: center;
+  width: 100%;
+}
+
+.folder-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px;
+  background-color: var(--vscode-editor-background);
+  border-radius: 4px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.folder-path {
+  font-family: monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--vscode-descriptionForeground);
+}
+
+.folder-actions {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+
+.action-button {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-textLink-foreground);
+  border: none;
+  border-radius: 4px;
+  padding: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 48px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.action-button:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+.tooltip {
+  visibility: hidden;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  text-align: center;
+  padding: 5px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-size: 11px;
+  margin-bottom: 5px;
+  border: 1px solid var(--vscode-editorWidget-border);
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.action-button:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+.no-hosts {
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0;
+  margin: 20px 0;
+  width: 100%;
+  gap: 20px; /* This adds space between flex items */
+}
+
+.config-button {
+  background-color: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.config-button:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
+}
+
+/* new style for red "close remote" button */
+.close-remote-button {
+  color: var(--vscode-button-foreground);
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.close-ssh-button {
+  background-color: var(--vscode-inputValidation-errorBackground, var(--vscode-button-background));
+}
+
+.close-ssh-button:hover {
+  background-color: var(--vscode-inputValidation-errorBorder, var(--vscode-button-hoverBackground));
+  border-color: var(--vscode-inputValidation-errorBorder);
+}
+
+.close-wsl-button {
+  background-color: var(--vscode-charts-purple, var(--vscode-button-secondaryBackground));
+}
+
+.close-wsl-button:hover {
+  background-color: var(--vscode-button-hoverBackground);
+  border-color: var(--vscode-charts-purple);
+}
+
+.close-docker-button {
+  background-color: var(--vscode-charts-blue, var(--vscode-button-secondaryBackground));
+}
+
+.close-docker-button:hover {
+  background-color: var(--vscode-button-hoverBackground);
+  border-color: var(--vscode-charts-blue);
+}
+
+/* Section color palette styling */
+.section-color-palette-container {
+  margin-left: 8px;
+  position: relative;
+  display: inline-block;
+}
+
+.section-color-palette-grid {
+  display: none;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 6px;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  padding: 12px;
+  background-color: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 280px;
+}
+
+.section-color-palette-container.active .section-color-palette-grid {
+  display: grid;
+}
+
+.section-color-option {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--vscode-editorWidget-border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.section-color-option:hover {
+  transform: scale(1.15);
+  border-color: var(--vscode-textLink-foreground);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.section-color-option.selected {
+  border-color: var(--vscode-textLink-foreground);
+  border-width: 3px;
+  box-shadow: 0 0 0 2px var(--vscode-editor-background), 0 0 0 4px var(--vscode-textLink-foreground);
+  transform: scale(1.2);
+}
+
+.section-color-option.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* Show selected color as preview when palette is collapsed */
+.section-color-palette-preview {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 50%;
+  background-color: var(--section-color, var(--vscode-textLink-foreground));
+  cursor: pointer;
+  vertical-align: middle;
+  transition: all 0.2s;
+}
+
+.section-color-palette-preview:hover {
+  transform: scale(1.1);
+  border-color: var(--vscode-textLink-foreground);
+}
+
+/* Icon selector modal styling */
+.icon-selector-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.icon-selector-content {
+  background-color: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.icon-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--vscode-editorWidget-border);
+}
+
+.icon-selector-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.icon-selector-close {
+  background: none;
+  border: none;
+  color: var(--vscode-foreground);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.icon-selector-close:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.icon-selector-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.icon-selector-section {
+  margin-bottom: 24px;
+}
+
+.icon-selector-section:last-child {
+  margin-bottom: 0;
+}
+
+.icon-selector-section label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.color-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 10px;
+  max-width: 100%;
+  padding: 4px 0;
+}
+
+@media (max-width: 600px) {
+  .color-palette-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.color-option {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--vscode-editorWidget-border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+  border-color: var(--vscode-textLink-foreground);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.color-option.selected {
+  border-color: var(--vscode-textLink-foreground);
+  border-width: 3px;
+  box-shadow: 0 0 0 2px var(--vscode-editor-background), 0 0 0 4px var(--vscode-textLink-foreground);
+  transform: scale(1.15);
+}
+
+.color-option.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.icon-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  border: 2px solid var(--vscode-editorWidget-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background-color: var(--vscode-sideBar-background);
+}
+
+.icon-option:hover {
+  border-color: var(--vscode-textLink-foreground);
+  background-color: var(--vscode-list-hoverBackground);
+  transform: translateY(-2px);
+}
+
+.icon-option.selected {
+  border-color: var(--vscode-textLink-foreground);
+  background-color: var(--vscode-list-activeSelectionBackground);
+}
+
+.icon-option img {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 8px;
+  filter: brightness(0) saturate(100%) invert(1);
+  opacity: 0.8;
+}
+
+.icon-option.selected img {
+  opacity: 1;
+}
+
+.icon-option span {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  text-align: center;
+  word-break: break-word;
+}
+
+.icon-selector-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--vscode-editorWidget-border);
+}
+
+.icon-selector-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.icon-selector-button:not(.secondary) {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.icon-selector-button:not(.secondary):hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+.icon-selector-button.secondary {
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.icon-selector-button.secondary:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}

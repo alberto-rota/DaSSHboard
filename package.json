@@ -1,8 +1,8 @@
 {
   "name": "dasshboard",
   "displayName": "DaSSHboard",
-  "description": "A stylish dashboard for quickly connecting to SSH hosts with customizable settings",
-  "version": "1.10.0",
+  "description": "A stylish, theme-aware dashboard for quickly connecting to SSH hosts and WSL distros with customizable settings",
+  "version": "2.0.0",
   "publisher": "AlbertoRota",
   "extensionKind": [
     "ui"
@@ -16,10 +16,13 @@
   ],
   "keywords": [
     "ssh",
+    "wsl",
     "remote",
     "dashboard",
     "welcome",
-    "connection"
+    "connection",
+    "theme",
+    "windows subsystem for linux"
   ],
   "icon": "media/readme/icon.png",
   "galleryBanner": {
@@ -35,6 +38,10 @@
       {
         "command": "dasshboard.showDashboard",
         "title": "Show DaSSHboard"
+      },
+      {
+        "command": "dasshboard.checkWslExtension",
+        "title": "DaSSHboard: Check Extension and Connection Status"
       }
     ],
     "menus": {
@@ -53,15 +60,32 @@
           "default": true,
           "description": "Automatically open the DaSSHboard when VS Code starts"
         },
+        "daSSHboard.statusBarIcon": {
+          "type": "string",
+          "default": "gripper",
+          "description": "Lucide icon name for the status bar button icon"
+        },
+        "daSSHboard.sshSectionColor": {
+          "type": "string",
+          "default": "",
+          "description": "Color for SSH section title, host count background, and host badge (CSS color). Leave empty to use theme default.",
+          "pattern": "^(#[0-9a-fA-F]{3,8}|rgba?\\(.*\\)|hsla?\\(.*\\)|[a-zA-Z]+|)$"
+        },
+        "daSSHboard.wslSectionColor": {
+          "type": "string",
+          "default": "",
+          "description": "Color for WSL section title, host count background, and host badge (CSS color). Leave empty to use theme default.",
+          "pattern": "^(#[0-9a-fA-F]{3,8}|rgba?\\(.*\\)|hsla?\\(.*\\)|[a-zA-Z]+|)$"
+        },
         "daSSHboard.hosts": {
           "type": "object",
-          "description": "Custom settings for SSH hosts",
+          "description": "Custom settings for SSH hosts and WSL distros",
           "additionalProperties": {
             "type": "object",
             "properties": {
               "folders": {
                 "type": "array",
-                "description": "List of folders to connect to on this host (defaults to /home/username)",
+                "description": "List of folders to connect to on this host, distro, or container (defaults vary by type)",
                 "items": {
                   "type": "string"
                 }
@@ -100,24 +124,28 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile && npm run copy-lucide",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "copy-lucide": "node -e \"require('fs').copyFileSync(require.resolve('lucide/dist/umd/lucide.min.js'), './media/lucide.min.js')\""
+  },
+  "dependencies": {
+    "lucide": "^0.562.0"
   },
   "devDependencies": {
-    "@types/vscode": "^1.70.0",
     "@types/glob": "^7.2.0",
     "@types/mocha": "^9.1.1",
     "@types/node": "16.x",
+    "@types/vscode": "^1.70.0",
     "@typescript-eslint/eslint-plugin": "^5.31.0",
     "@typescript-eslint/parser": "^5.31.0",
+    "@vscode/test-electron": "^2.1.5",
     "eslint": "^8.20.0",
     "glob": "^8.0.3",
     "mocha": "^10.0.0",
-    "typescript": "^4.7.4",
-    "@vscode/test-electron": "^2.1.5"
+    "typescript": "^4.7.4"
   }
 }
