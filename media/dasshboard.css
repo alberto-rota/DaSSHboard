@@ -2,12 +2,12 @@ body {
   background-color: var(--vscode-editor-background);
   color: var(--vscode-editor-foreground);
   font-family: "Segoe UI", sans-serif;
-  padding: 20px;
+  padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  justify-content: center;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .container {
@@ -15,10 +15,12 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   width: 100%;
-  margin: 20px 0;
-  gap: 40px;
+  padding: 20px;
+  margin: 0;
+  gap: 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .section {
@@ -29,18 +31,49 @@ body {
 .section-title {
   font-size: 18px;
   font-weight: 600;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
   padding-bottom: 10px;
-  border-bottom: 2px solid var(--vscode-editorWidget-border);
+  border-bottom: 2.5px solid var(--section-color, var(--vscode-textLink-foreground));
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--vscode-foreground);
+  color: var(--section-color, var(--vscode-textLink-foreground));
   position: relative;
+  border-radius: 4px;
+  background-color: transparent;
 }
 
 .section-title svg {
   opacity: 0.7;
+  color: var(--section-color, var(--vscode-textLink-foreground));
+}
+
+.section-title .section-icon-wrapper .section-icon {
+  background-color: var(--section-color, var(--vscode-textLink-foreground));
+}
+
+.section-collapse-button {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vscode-foreground);
+  opacity: 0.7;
+  transition: opacity 0.2s, transform 0.2s;
+  margin-right: 4px;
+}
+
+.section-collapse-button:hover {
+  opacity: 1;
+}
+
+.section-collapse-button svg {
+  width: 16px;
+  height: 16px;
+  opacity: 1;
 }
 
 .section-count {
@@ -67,26 +100,27 @@ body {
 }
 
 .docker-section-title .section-count {
-  background-color: var(--vscode-charts-blue, var(--vscode-textLink-foreground));
-  color: var(--vscode-badge-foreground, #ffffff);
+  background-color: var(--section-color, var(--vscode-textLink-foreground)); 
+  color: var(--vscode-statusBarItem-remoteBackground);
 }
 
 .ssh-section-title {
   color: var(--section-color, var(--vscode-textLink-foreground));
-  background-color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
-  padding: 8px 12px;
-  border-radius: 4px;
+  background-color: transparent;
 }
 
 .wsl-section-title {
   color: var(--section-color, var(--vscode-textLink-foreground));
-  background-color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
-  padding: 8px 12px;
-  border-radius: 4px;
+  background-color: transparent;
 }
 
 .docker-section-title {
-  color: var(--vscode-charts-blue, var(--vscode-textLink-foreground));
+  color: var(--section-color, var(--vscode-textLink-foreground));
+  background-color: transparent;
+}
+
+.section.collapsed .host-grid {
+  display: none;
 }
 
 .host-grid {
@@ -98,24 +132,151 @@ body {
   perspective: 1000px;
 }
 
+/* Layout variations */
+.host-grid.layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 30px;
+}
+
+.host-grid.layout-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.host-grid.layout-list .host-card {
+  width: 100%;
+  max-width: 100%;
+  flex-direction: row;
+  align-items: center;
+  padding: 10px 16px 10px 20px;
+  gap: 0;
+  flex-wrap: nowrap;
+}
+
+/* Left half: contains name, connection, badge - all in one row */
+.host-grid.layout-list .host-header {
+  flex: 0 0 40%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 0;
+  gap: 0;
+  min-width: 0;
+}
+
+/* Flatten the nested row structure */
+.host-grid.layout-list .host-header-row {
+  display: contents;
+}
+
+.host-grid.layout-list .host-connection-row {
+  display: contents;
+}
+
+/* Host name container - 40% of left half */
+.host-grid.layout-list .host-name-container {
+  flex: 0 0 40%;
+  min-width: 0;
+  overflow: hidden;
+  padding-right: 12px;
+  box-sizing: border-box;
+  order: 1;
+}
+
+.host-grid.layout-list .host-header .host-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 14px;
+}
+
+/* Host connection (user@host) - 40% of left half */
+.host-grid.layout-list .host-connection {
+  flex: 0 0 40%;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 12px;
+  box-sizing: border-box;
+  order: 2;
+}
+
+/* Badge - 20% of left half */
+.host-grid.layout-list .host-type-badge {
+  flex: 0 0 8%;
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  order: 3;
+}
+
+/* Right half: folders container */
+.host-grid.layout-list .folders-container {
+  flex: 0 0 60%;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin-top: 0;
+  gap: 8px;
+  justify-content: flex-start;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Folder entries - max 2 per row */
+.host-grid.layout-list .folder-entry {
+  flex: 0 0 calc(50% - 6px);
+  max-width: calc(50% - 6px);
+  min-width: 0;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.host-grid.layout-list .folder-entry .folder-path {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.host-grid.layout-list .folder-entry .folder-actions {
+  flex-shrink: 0;
+}
+
 .host-card {
   background-color: var(--vscode-sideBar-background);
   color: var(--vscode-editor-foreground);
   border-radius: 8px;
   padding: 16px;
+  padding-left: 20px;
   box-shadow: 0 2px 4px var(--vscode-widget-shadow);
-  transition: border-color 0.3s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
   border: 1px solid transparent;
+  border-left: 8px solid transparent;
+  box-sizing: border-box;
+  border-radius: 4px;
+
 }
 
 .host-card:hover {
   background-color: var(--vscode-list-hoverBackground);
-  border-left: 4px solid var(--host-color, var(--vscode-textLink-foreground));
+  box-shadow: -4px 0 0 0 var(--host-color, var(--vscode-textLink-foreground));
+  /* border-left removed to appear outside instead of inside */
 }
 
 .host-header {
@@ -263,13 +424,28 @@ body.vscode-high-contrast .dark-theme-only {
   opacity: 1;
 }
 
+/* Action icon using mask technique for exact color matching */
+.action-icon {
+  display: block;
+  width: 30px;
+  height: 20px;
+  mask-image: var(--icon-src);
+  -webkit-mask-image: var(--icon-src);
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-position: center;
+}
+
 /* Style for action buttons that inherit host color */
 .action-button.host-colored {
   color: var(--host-color);
 }
 
-.action-button.host-colored img {
-  filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(calc(var(--host-color-hue) * 1deg)) brightness(104%) contrast(97%);
+.action-button.host-colored .action-icon {
+  background-color: var(--host-color);
 }
 
 /* Style for action buttons that use default color - make icons match button foreground for proper contrast */
@@ -277,20 +453,19 @@ body.vscode-high-contrast .dark-theme-only {
   color: var(--vscode-button-foreground);
 }
 
-/* Convert icons to white/light color to contrast with colored button backgrounds */
-/* This ensures icons are visible against button backgrounds (which are typically colored) */
-.action-button.default-colored img {
-  filter: brightness(0) saturate(100%) invert(1);
+/* White/light color to contrast with colored button backgrounds */
+.action-button.default-colored .action-icon {
+  background-color: var(--vscode-button-foreground, white);
   opacity: 0.95;
 }
 
 /* Ensure icons are fully visible on hover */
-.action-button:hover img {
+.action-button:hover .action-icon {
   opacity: 1;
 }
 
 /* For host-colored buttons, also ensure good visibility on hover */
-.action-button.host-colored:hover img {
+.action-button.host-colored:hover .action-icon {
   opacity: 1;
 }
 
@@ -347,16 +522,23 @@ body.vscode-high-contrast .dark-theme-only {
   color: var(--vscode-badge-foreground);
 }
 
+/* Apply section color to badges within the section */
+.docker-section .docker-badge {
+  background-color: var(--section-color, var(--vscode-textLink-foreground));
+  color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
+  border-color: var(--vscode-statusBarItem-remoteBackground, var(--section-color, var(--vscode-textLink-foreground)));
+}
+
 .wsl-host {
-  border-left: 4px solid var(--vscode-statusBarItem-remoteBackground, var(--vscode-textLink-foreground));
+  border-left: 1px solid transparent;
 }
 
 .ssh-host {
-  border-left: 4px solid var(--vscode-statusBarItem-remoteBackground, var(--vscode-textLink-foreground));
+  border-left: 1px solid transparent;
 }
 
 .docker-host {
-  border-left: 3px solid var(--vscode-charts-blue, var(--vscode-textLink-foreground));
+  border-left: 1px solid transparent;
 }
 
 .folders-container {
@@ -372,7 +554,7 @@ body.vscode-high-contrast .dark-theme-only {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 8px;
+  padding: 5px 8px;
   background-color: var(--vscode-editor-background);
   border-radius: 4px;
   width: 100%;
@@ -400,11 +582,11 @@ body.vscode-high-contrast .dark-theme-only {
   color: var(--vscode-textLink-foreground);
   border: none;
   border-radius: 4px;
-  padding: 6px;
+  padding: 4px;
   cursor: pointer;
   transition: background-color 0.2s;
-  width: 48px;
-  height: 32px;
+  width: 44px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -449,10 +631,13 @@ footer {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 20px 0;
-  margin: 20px 0;
+  padding: 20px;
+  margin: 0;
   width: 100%;
   gap: 20px; /* This adds space between flex items */
+  flex-shrink: 0;
+  background-color: var(--vscode-editor-background);
+  border-top: 1px solid var(--vscode-editorWidget-border);
 }
 
 .config-button {
@@ -472,38 +657,52 @@ footer {
   background-color: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
 }
 
-/* new style for red "close remote" button */
+/* Style for Open SSH Config button with neutral border */
+.ssh-config-button {
+  border: 1px solid var(--vscode-editorWidget-border);
+  background-color: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
+}
+
+.ssh-config-button:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
+  border-color: var(--vscode-input-border);
+}
+
+/* new style for "close remote" button */
 .close-remote-button {
   color: var(--vscode-button-foreground);
-  border: 1px solid transparent;
+  background-color: transparent;
+  border: 1px solid var(--section-color, var(--vscode-textLink-foreground));
   transition: all 0.2s ease;
 }
 
+.close-remote-button:hover {
+  background-color: var(--section-color, var(--vscode-textLink-foreground));
+  color: var(--vscode-button-foreground);
+}
+
 .close-ssh-button {
-  background-color: var(--vscode-inputValidation-errorBackground, var(--vscode-button-background));
+  border-color: var(--section-color, var(--vscode-textLink-foreground));
 }
 
 .close-ssh-button:hover {
-  background-color: var(--vscode-inputValidation-errorBorder, var(--vscode-button-hoverBackground));
-  border-color: var(--vscode-inputValidation-errorBorder);
+  background-color: var(--section-color, var(--vscode-textLink-foreground));
 }
 
 .close-wsl-button {
-  background-color: var(--vscode-charts-purple, var(--vscode-button-secondaryBackground));
+  border-color: var(--section-color, var(--vscode-textLink-foreground));
 }
 
 .close-wsl-button:hover {
-  background-color: var(--vscode-button-hoverBackground);
-  border-color: var(--vscode-charts-purple);
+  background-color: var(--section-color, var(--vscode-textLink-foreground));
 }
 
 .close-docker-button {
-  background-color: var(--vscode-charts-blue, var(--vscode-button-secondaryBackground));
+  border-color: var(--section-color, var(--vscode-textLink-foreground));
 }
 
 .close-docker-button:hover {
-  background-color: var(--vscode-button-hoverBackground);
-  border-color: var(--vscode-charts-blue);
+  background-color: var(--section-color, var(--vscode-textLink-foreground));
 }
 
 /* Section color palette styling */
@@ -587,6 +786,7 @@ footer {
   transform: scale(1.1);
   border-color: var(--vscode-textLink-foreground);
 }
+
 
 /* Icon selector modal styling */
 .icon-selector-modal {

@@ -1,8 +1,8 @@
 {
   "name": "dasshboard",
   "displayName": "DaSSHboard",
-  "description": "A stylish, theme-aware dashboard for quickly connecting to SSH hosts and WSL distros with customizable settings",
-  "version": "2.0.0",
+  "description": "A stylish, theme-aware dashboard for quickly connecting to SSH hosts, WSL distros and Docker containers with customizable settings",
+  "version": "2.1.0",
   "publisher": "AlbertoRota",
   "extensionKind": [
     "ui"
@@ -17,12 +17,14 @@
   "keywords": [
     "ssh",
     "wsl",
+    "docker",
     "remote",
     "dashboard",
     "welcome",
     "connection",
     "theme",
-    "windows subsystem for linux"
+    "windows subsystem for linux",
+    "docker containers"
   ],
   "icon": "media/readme/icon.png",
   "galleryBanner": {
@@ -77,6 +79,37 @@
           "description": "Color for WSL section title, host count background, and host badge (CSS color). Leave empty to use theme default.",
           "pattern": "^(#[0-9a-fA-F]{3,8}|rgba?\\(.*\\)|hsla?\\(.*\\)|[a-zA-Z]+|)$"
         },
+        "daSSHboard.dockerSectionColor": {
+          "type": "string",
+          "default": "",
+          "description": "Color for Docker section title, host count background, and host badge (CSS color). Leave empty to use theme default.",
+          "pattern": "^(#[0-9a-fA-F]{3,8}|rgba?\\(.*\\)|hsla?\\(.*\\)|[a-zA-Z]+|)$"
+        },
+        "daSSHboard.sshSectionCollapsed": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the SSH section is collapsed in the dashboard"
+        },
+        "daSSHboard.wslSectionCollapsed": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the WSL section is collapsed in the dashboard"
+        },
+        "daSSHboard.dockerSectionCollapsed": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the Docker section is collapsed in the dashboard"
+        },
+        "daSSHboard.layout": {
+          "type": "string",
+          "default": "grid",
+          "enum": ["grid", "list"],
+          "enumDescriptions": [
+            "Display hosts in a grid layout",
+            "Display hosts in a list layout"
+          ],
+          "description": "Layout mode for the dashboard (grid or list view)"
+        },
         "daSSHboard.hosts": {
           "type": "object",
           "description": "Custom settings for SSH hosts and WSL distros",
@@ -92,35 +125,35 @@
               },
               "color": {
                 "type": "string",
-                "description": "Custom background color for this host (CSS color)",
-                "pattern": "^(#[0-9a-fA-F]{3,8}|rgba?\\(.*\\)|hsla?\\(.*\\)|[a-zA-Z]+)$"
+                "description": "Custom color for this host's icon (CSS color). Leave empty for theme default.",
+                "pattern": "^(#[0-9a-fA-F]{3,8}|rgba?\\(.*\\)|hsla?\\(.*\\)|[a-zA-Z]+|)$"
               },
               "icon": {
                 "type": "string",
-                "description": "Custom icon for this host (filename in extension's media/hosts folder without .svg extension)"
+                "description": "Custom icon for this host. Use 'lucide:icon-name' for Lucide icons or 'filename' for SVG files in media/hosts folder"
               }
             }
           },
           "default": {}
         }
-      },
-      "viewsContainers": {
-        "activitybar": [
-          {
-            "id": "dasshboardContainer",
-            "title": "DaSSHboard",
-            "icon": "media/readme/icon.png"
-          }
-        ]
-      },
-      "views": {
-        "dasshboardContainer": [
-          {
-            "id": "dasshboardView",
-            "name": "DaSSHboard"
-          }
-        ]
       }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dasshboardContainer",
+          "title": "DaSSHboard",
+          "icon": "media/readme/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "dasshboardContainer": [
+        {
+          "id": "dasshboardView",
+          "name": "DaSSHboard"
+        }
+      ]
     }
   },
   "scripts": {

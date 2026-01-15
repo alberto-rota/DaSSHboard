@@ -7,9 +7,9 @@ async function generateDefaultHostSettings(): Promise<void> {
   try {
       console.log('DaSSHboard: Checking for new hosts and updating settings...');
       
-      // Get all hosts from SSH config, WSL, and Docker
+      // Get all hosts from SSH config and WSL (Docker containers are not saved to settings)
       const allHosts = await getAllHosts();
-      const hosts = [...allHosts.ssh, ...allHosts.wsl, ...allHosts.docker];
+      const hosts = [...allHosts.ssh, ...allHosts.wsl];
       
       // Get current settings
       const config = vscode.workspace.getConfiguration('daSSHboard');
@@ -512,8 +512,13 @@ async function getDockerContainers(): Promise<HostConfig[]> {
               
               console.log('DaSSHboard: Found Docker container:', containerName, 'Full ID:', containerId.substring(0, 12) + '...');
               
-              // Get settings for this Docker container
-              const settings = getHostSettings(containerName);
+              // Docker containers don't use extension settings - return empty settings
+              // Only section color is configurable, not individual container settings
+              const settings: HostSettings = {
+                  folders: [],  // Will be forced to ['/'] in generateHostCards
+                  color: '',     // Not used for Docker containers
+                  icon: ''       // Will be forced to 'docker.svg' in generateHostCards
+              };
               
               containers.push({
                   name: containerName,
@@ -547,13 +552,12 @@ async function getAllHosts(): Promise<{
 }> {
   const sshHosts = await getSshHosts();
   const wslDistros = await getWslDistros();
-  // Docker functionality temporarily disabled
-  // const dockerContainers = await getDockerContainers();
+  const dockerContainers = await getDockerContainers();
   
   return {
       ssh: sshHosts,
       wsl: wslDistros,
-      docker: [] // Disabled for now
+      docker: dockerContainers
   };
 }
 
@@ -572,7 +576,11 @@ function generateHostCards(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
           let iconColorStyle = '';
           let actionButtonClass = '';
           
-          if (host.settings.color) {
+          // Docker containers don't use individual host colors - they use section color or theme default
+          if (host.type === 'docker') {
+              // Docker containers always use theme default color (section color applies to section title only)
+              actionButtonClass = 'default-colored';
+          } else if (host.settings.color) {
               // Custom color provided in settings - only apply to icons, not background
               iconColorStyle = `style="color: ${host.settings.color}; --host-color: ${host.settings.color}; --host-color-hue: ${getHue(host.settings.color)};"`;
               actionButtonClass = 'host-colored';
@@ -584,7 +592,21 @@ function generateHostCards(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
           // Custom host icon if specified
           // ▒▒ Custom host icon  ▒▒
           let hostIconHtml = '';
-          let iconToUse = host.settings.icon || 'lucide:server'; // Default to Lucide server icon
+          
+          // Docker containers always use docker.svg icon (not modifiable)
+          let iconToUse: string;
+          if (host.type === 'docker') {
+              iconToUse = 'docker.svg'; // Fixed docker icon
+          } else {
+              iconToUse = host.settings.icon || 'lucide:server'; // Default to Lucide server icon
+          }
+
+          // Docker containers: icons are not clickable and cannot be modified
+          const isDocker = host.type === 'docker';
+          const clickableClass = isDocker ? '' : 'clickable-host-icon';
+          const iconTitle = isDocker ? '' : 'title="Click to change icon and color"';
+          const escapedHostName = host.name.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+          const iconDataAttrs = isDocker ? '' : `data-host="${escapedHostName}" data-host-type="${host.type}"`;
 
           // Always render icon (use default if not set)
           {
@@ -594,27 +616,31 @@ function generateHostCards(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
             
             if (lucideMatch) {
               const lucideIconName = lucideMatch[1].trim();
-              const escapedHostName = host.name.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
               
               // Render Lucide icon using data-lucide attribute
               // The icon will be initialized by lucide.createIcons() in the webview script
-              if (host.settings.color) {
+              // Docker containers don't use custom colors - use theme default
+              if (isDocker) {
+                // Docker: use theme default color, not clickable
                 hostIconHtml = `
                   <i data-lucide="${lucideIconName}"
-                     class="host-icon clickable-host-icon lucide-icon"
-                     data-host="${escapedHostName}"
-                     data-host-type="${host.type}"
+                     class="host-icon lucide-icon theme-colored-lucide"
+                     style="width: 24px; height: 24px; color: var(--vscode-textLink-foreground);"></i>`;
+              } else if (host.settings.color) {
+                hostIconHtml = `
+                  <i data-lucide="${lucideIconName}"
+                     class="host-icon ${clickableClass} lucide-icon"
+                     ${iconDataAttrs}
                      style="width: 24px; height: 24px; color: ${host.settings.color}; --host-color: ${host.settings.color}; --host-color-hue: ${getHue(host.settings.color)};"
-                     title="Click to change icon and color"></i>`;
+                     ${iconTitle}></i>`;
               } else {
                 // For default color, use CSS variable for theme color
                 hostIconHtml = `
                   <i data-lucide="${lucideIconName}"
-                     class="host-icon clickable-host-icon lucide-icon theme-colored-lucide"
-                     data-host="${escapedHostName}"
-                     data-host-type="${host.type}"
+                     class="host-icon ${clickableClass} lucide-icon theme-colored-lucide"
+                     ${iconDataAttrs}
                      style="width: 24px; height: 24px; color: var(--vscode-textLink-foreground);"
-                     title="Click to change icon and color"></i>`;
+                     ${iconTitle}></i>`;
               }
             }
             /* ─── 2 ▸ otherwise treat value as local SVG filename (existing logic) ─── */
@@ -630,42 +656,47 @@ function generateHostCards(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
                                       `${path.parse(iconFileName).name}_white.svg`));
 
               const iconClass = host.settings.color ? 'custom-colored-svg' : 'theme-colored-svg';
-              const escapedHostName = host.name.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-              if (host.settings.color) {
+              if (isDocker) {
+                  // Docker: use theme-colored approach, not clickable
+                  hostIconHtml = `
+                    <span class="host-icon-wrapper theme-colored-icon-wrapper light-theme-only" style="--icon-src: url('${hostIconPath}');">
+                      <span class="host-icon theme-colored-svg"></span>
+                    </span>
+                    <span class="host-icon-wrapper theme-colored-icon-wrapper dark-theme-only" style="--icon-src: url('${hostIconWhitePath}');">
+                      <span class="host-icon theme-colored-svg"></span>
+                    </span>`;
+              } else if (host.settings.color) {
                   hostIconHtml = `
                     <img src="${hostIconPath}"
-                         class="host-icon ${iconClass} clickable-host-icon light-theme-only"
+                         class="host-icon ${iconClass} ${clickableClass} light-theme-only"
                          ${iconColorStyle}
-                         data-host="${escapedHostName}"
-                         data-host-type="${host.type}"
+                         ${iconDataAttrs}
                          alt="${host.name} icon"
-                         title="Click to change icon and color" />
+                         ${iconTitle} />
                     <img src="${hostIconWhitePath}"
-                         class="host-icon ${iconClass} clickable-host-icon dark-theme-only"
+                         class="host-icon ${iconClass} ${clickableClass} dark-theme-only"
                          ${iconColorStyle}
-                         data-host="${escapedHostName}"
-                         data-host-type="${host.type}"
+                         ${iconDataAttrs}
                          alt="${host.name} icon"
-                         title="Click to change icon and color"/>`;
+                         ${iconTitle}/>`;
               } else {
                   // For default color, use mask approach with textLink color
                   hostIconHtml = `
                     <span class="host-icon-wrapper theme-colored-icon-wrapper light-theme-only" style="--icon-src: url('${hostIconPath}');">
-                      <span class="host-icon theme-colored-svg clickable-host-icon"
-                           data-host="${escapedHostName}"
-                           data-host-type="${host.type}"
-                           title="Click to change icon and color"></span>
+                      <span class="host-icon theme-colored-svg ${clickableClass}"
+                           ${iconDataAttrs}
+                           ${iconTitle}></span>
                     </span>
                     <span class="host-icon-wrapper theme-colored-icon-wrapper dark-theme-only" style="--icon-src: url('${hostIconWhitePath}');">
-                      <span class="host-icon theme-colored-svg clickable-host-icon"
-                           data-host="${escapedHostName}"
-                           data-host-type="${host.type}"
-                           title="Click to change icon and color"></span>
+                      <span class="host-icon theme-colored-svg ${clickableClass}"
+                           ${iconDataAttrs}
+                           ${iconTitle}></span>
                     </span>`;
               }
             }
-          }
+            }
+          
           
           // Display connection details based on host type
           let connectionDetail = '';
@@ -686,16 +717,18 @@ function generateHostCards(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
           
           // Get folders (default based on type)
           let folders: string[];
-          if (host.settings.folders && host.settings.folders.length > 0) {
+          if (host.type === 'docker') {
+              // Docker containers always show root folder only
+              folders = ['/'];
+          } else if (host.settings.folders && host.settings.folders.length > 0) {
               folders = host.settings.folders;
-          } else if (host.type === 'docker') {
-              folders = ['/workspaces', '/workspace', '/app', '/root'];
           } else {
               folders = [host.user === "root" ? "/root" : `/home/${host.user}`];
           }
           
-          // For Docker containers, pass the container ID; for others, pass the name
-          const identifier = host.type === 'docker' && host.containerId ? host.containerId : host.name;
+          // For Docker containers, pass the container name (VS Code remote extension expects name, not ID)
+          // For others, pass the name
+          const identifier = host.name;
           
           // Escape special characters for HTML attributes
           const escapedIdentifier = identifier.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -717,7 +750,7 @@ function generateHostCards(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
                               data-folder="${escapedFolder}" 
                               data-type="${escapedType}"
                               data-new-window="false">
-                          <img src="${currentWindowIconPath}" width="30" height="20" alt="Current window">
+                          <span class="action-icon" style="--icon-src: url('${currentWindowIconPath}');" aria-label="Current window"></span>
                           <span class="tooltip">Open in current window</span>
                       </button>
                       <button class="action-button ${actionButtonClass}" 
@@ -726,7 +759,7 @@ function generateHostCards(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
                               data-folder="${escapedFolder}" 
                               data-type="${escapedType}"
                               data-new-window="true">
-                          <img src="${newWindowIconPath}" width="30" height="20" alt="New window">
+                          <span class="action-icon" style="--icon-src: url('${newWindowIconPath}');" aria-label="New window"></span>
                           <span class="tooltip">Open in new window</span>
                       </button>
                   </div>
@@ -766,10 +799,15 @@ function getWebviewContent(
   extensionUri: vscode.Uri,
   webview: vscode.Webview
 ): string {
-  // Get section colors from settings
+  // Get section colors and collapsed states from settings
   const config = vscode.workspace.getConfiguration('daSSHboard');
   const sshSectionColor = config.get<string>('sshSectionColor', '');
   const wslSectionColor = config.get<string>('wslSectionColor', '');
+  const dockerSectionColor = config.get<string>('dockerSectionColor', '');
+  const sshSectionCollapsed = config.get<boolean>('sshSectionCollapsed', false);
+  const wslSectionCollapsed = config.get<boolean>('wslSectionCollapsed', false);
+  const dockerSectionCollapsed = config.get<boolean>('dockerSectionCollapsed', false);
+  const globalLayout = config.get<string>('layout', 'grid');
   
   // Detect the type of remote connection
   const remoteName = vscode.env.remoteName;
@@ -795,8 +833,8 @@ function getWebviewContent(
   // Build section HTML
   let sectionsHtml = '';
   
-  // Helper function to generate section title with color palette
-  const generateSectionTitle = (sectionType: 'ssh' | 'wsl', title: string, count: number, color: string) => {
+  // Helper function to generate section title with color palette and collapse button
+  const generateSectionTitle = (sectionType: 'ssh' | 'wsl' | 'docker', title: string, count: number, color: string, collapsed: boolean) => {
       const colorPaletteId = `${sectionType}-color-palette`;
       const currentColor = color || '';
       
@@ -804,10 +842,10 @@ function getWebviewContent(
       // First color is empty string representing theme default (vscode-textLink-foreground)
       let colorGrid = '';
       const colorPalette = [
-          '', '#107c10', '#ff8c00', '#e81123', '#8764b8',
-          '#00bcf2', '#ffb900', '#bad80a', '#0099bc', '#ff4343',
-          '#5c2d91', '#00a4ef', '#ffaa44', '#7fba00', '#f25022',
-          '#737373', '#005e50', '#004b1c', '#012d49', '#bf0077'
+                 '', "#ffadad","#ffd6a5","#fdffb6","#caffbf","#9bf6ff","#a0c4ff","#bdb2ff","#ffc6ff","#ffd9d9",
+          '#000000', "#e03524","#f07c12","#ffc200","#90bc1a","#21b534","#0095ac","#1f64ad","#4040a0","#903498",
+          '#888888', "#f94144","#f3722c","#f8961e","#f9c74f","#90be6d","#43aa8b","#4d908e","#577590","#277da1",
+          '#ffffff', "#ef476f","#f78c6b","#ffd166","#83d483","#06d6a0","#0cb0a9","#118ab2","#0c637f","#073b4c"
       ];
       
       colorPalette.forEach((paletteColor, index) => {
@@ -820,16 +858,51 @@ function getWebviewContent(
       
       // Use CSS variable for preview if no color is set (theme default)
       const previewColor = currentColor || 'var(--vscode-textLink-foreground)';
+      
+      // Section-specific icons - colored with section color
+      const sectionIconColor = currentColor || 'var(--vscode-textLink-foreground)';
+      let sectionIcon = '';
+      if (sectionType === 'wsl') {
+        // Use the same docker.svg icon as host cards
+        const wslIconPath = webview.asWebviewUri(
+            vscode.Uri.joinPath(extensionUri, 'media', 'hosts', 'linux_white.svg'));
+        
+        // Use section color for Docker icon with inline style
+        sectionIcon = `
+            <span class="section-icon-wrapper theme-colored-icon-wrapper dark-theme-only" style="--icon-src: url('${wslIconPath}'); width: 18px; height: 18px; display: inline-block;">
+                <span class="section-icon theme-colored-svg" style="width: 18px; height: 18px; background-color: ${sectionIconColor};"></span>
+            </span>`;
+      } else if (sectionType === 'docker') {
+          // Use the same docker.svg icon as host cards
+          const dockerIconPath = webview.asWebviewUri(
+              vscode.Uri.joinPath(extensionUri, 'media', 'hosts', 'docker_white.svg'));
+          
+          // Use section color for Docker icon with inline style
+          sectionIcon = `
+              <span class="section-icon-wrapper theme-colored-icon-wrapper dark-theme-only" style="--icon-src: url('${dockerIconPath}'); width: 18px; height: 18px; display: inline-block;">
+                  <span class="section-icon theme-colored-svg" style="width: 18px; height: 18px; background-color: ${sectionIconColor};"></span>
+              </span>`;
+      } else {
+            const sshIconPath = webview.asWebviewUri(
+                vscode.Uri.joinPath(extensionUri, 'media', 'hosts', 'monitor.svg'));
+            
+            // Use section color for Docker icon with inline style
+            sectionIcon = `
+                <span class="section-icon-wrapper theme-colored-icon-wrapper dark-theme-only" style="--icon-src: url('${sshIconPath}'); width: 18px; height: 18px; display: inline-block;">
+                    <span class="section-icon theme-colored-svg" style="width: 18px; height: 18px; background-color: ${sectionIconColor};"></span>
+                </span>`;
+      }
+      
       return `
-          <h2 class="section-title ${sectionType}-section-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="3" width="7" height="7"/>
-                  <rect x="14" y="3" width="7" height="7"/>
-                  <rect x="14" y="14" width="7" height="7"/>
-                  <rect x="3" y="14" width="7" height="7"/>
-              </svg>
+          <h2 class="section-title ${sectionType}-section-title" style="border-bottom-color: ${sectionIconColor};">
+              <button class="section-collapse-button" data-section="${sectionType}" title="${collapsed ? 'Expand' : 'Collapse'} section">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="${collapsed ? '9 18 15 12 9 6' : '6 9 12 15 18 9'}"></polyline>
+                  </svg>
+              </button>
+              ${sectionIcon}
               ${title}
-              <span class="section-count">${count}</span>
+              <span class="section-count" style="background-color: ${sectionIconColor};">${count}</span>
               <div class="section-color-palette-container" id="${colorPaletteId}" title="Change ${sectionType.toUpperCase()} section color">
                   <div class="section-color-palette-preview" style="background-color: ${previewColor};"></div>
                   <div class="section-color-palette-grid">
@@ -841,11 +914,13 @@ function getWebviewContent(
   
   // SSH Hosts Section
   if (hosts.ssh.length > 0) {
+      // Only set the CSS variable when there's an actual color value
       const sectionColorStyle = sshSectionColor ? `style="--section-color: ${sshSectionColor};"` : '';
+      const collapsedClass = sshSectionCollapsed ? 'collapsed' : '';
       sectionsHtml += `
-      <div class="section ssh-section" ${sectionColorStyle}>
-          ${generateSectionTitle('ssh', 'SSH Remote Hosts', hosts.ssh.length, sshSectionColor)}
-          <div class="host-grid">
+      <div class="section ssh-section ${collapsedClass}" ${sectionColorStyle}>
+          ${generateSectionTitle('ssh', 'SSH Remote Hosts', hosts.ssh.length, sshSectionColor, sshSectionCollapsed)}
+          <div class="host-grid layout-${globalLayout}">
               ${sshCards}
           </div>
       </div>`;
@@ -853,11 +928,13 @@ function getWebviewContent(
   
   // WSL Distros Section
   if (hosts.wsl.length > 0) {
+      // Only set the CSS variable when there's an actual color value
       const sectionColorStyle = wslSectionColor ? `style="--section-color: ${wslSectionColor};"` : '';
+      const collapsedClass = wslSectionCollapsed ? 'collapsed' : '';
       sectionsHtml += `
-      <div class="section wsl-section" ${sectionColorStyle}>
-          ${generateSectionTitle('wsl', 'WSL Distros', hosts.wsl.length, wslSectionColor)}
-          <div class="host-grid">
+      <div class="section wsl-section ${collapsedClass}" ${sectionColorStyle}>
+          ${generateSectionTitle('wsl', 'WSL Distros', hosts.wsl.length, wslSectionColor, wslSectionCollapsed)}
+          <div class="host-grid layout-${globalLayout}">
               ${wslCards}
           </div>
       </div>`;
@@ -865,17 +942,13 @@ function getWebviewContent(
   
   // Docker Containers Section
   if (hosts.docker.length > 0) {
+      // Only set the CSS variable when there's an actual color value
+      const sectionColorStyle = dockerSectionColor ? `style="--section-color: ${dockerSectionColor};"` : '';
+      const collapsedClass = dockerSectionCollapsed ? 'collapsed' : '';
       sectionsHtml += `
-      <div class="section">
-          <h2 class="section-title docker-section-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20 7h-3V4h-2v3h-3v2h3v3h2V9h3V7z"/>
-                  <path d="M5 8h3v3H5zM9 8h3v3H9zM13 8h3v3h-3zM5 12h3v3H5zM9 12h3v3H9z"/>
-              </svg>
-              Docker Containers
-              <span class="section-count">${hosts.docker.length}</span>
-          </h2>
-          <div class="host-grid">
+      <div class="section docker-section ${collapsedClass}" ${sectionColorStyle}>
+          ${generateSectionTitle('docker', 'Docker Containers', hosts.docker.length, dockerSectionColor, dockerSectionCollapsed)}
+          <div class="host-grid layout-${globalLayout}">
               ${dockerCards}
           </div>
       </div>`;
@@ -889,6 +962,16 @@ function getWebviewContent(
   /* extra button (remote-only) - shows when in SSH, WSL, or Docker remote context */
   let closeRemoteButtonHtml = '';
   if (remoteType) {
+      // Get section color for the button border
+      let sectionColor = '';
+      if (remoteType === 'ssh') {
+          sectionColor = sshSectionColor || '';
+      } else if (remoteType === 'wsl') {
+          sectionColor = wslSectionColor || '';
+      } else if (remoteType === 'docker') {
+          sectionColor = dockerSectionColor || '';
+      }
+      
       // Different button styles based on connection type
       let buttonClass = 'close-remote-button';
       if (remoteType === 'ssh') {
@@ -899,10 +982,14 @@ function getWebviewContent(
           buttonClass = 'close-remote-button close-docker-button';
       }
       
+      const buttonStyle = sectionColor ? `style="--section-color: ${sectionColor};"` : '';
+      
       closeRemoteButtonHtml = `
-        <button class="config-button ${buttonClass}" onclick="closeRemote()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 17L7 7"></path><path d="M7 17l10-10"></path>
+        <button class="config-button ${buttonClass}" ${buttonStyle} onclick="closeRemote()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
           </svg>
           ${closeButtonText}
         </button>`;
@@ -927,26 +1014,40 @@ function getWebviewContent(
   ${sectionsHtml}
 </div>
 <footer align-items: center, gap: 20px>
-  <button class="config-button" onclick="openSshConfig()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
+  <button class="config-button layout-toggle-button" onclick="toggleLayout()" data-layout="${globalLayout}">
+    ${globalLayout === 'grid' 
+      ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        Grid View`
+      : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+          <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
+          <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+        List View`}
+  </button>
+  <button class="config-button" onclick="openDaSSHboardSetting()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V20a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H4a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V4a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H20a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+    Open DaSSHboard settings
+  </button>
+  <button class="config-button" onclick="openDashboardPathsSetting()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+    </svg>
+    Configure path entrypoints
+  </button>
+  <button class="config-button ssh-config-button" onclick="openSshConfig()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="4 17 10 11 4 5"/>
+      <line x1="12" y1="19" x2="20" y2="19"/>
     </svg>
     Open SSH Config
   </button>
-  <button class="config-button" onclick="openDaSSHboardSetting()">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-  </svg>
-  Open DaSSHboard settings
-</button>
-  <button class="config-button" onclick="openDashboardPathsSetting()">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-    <polyline points="9 22 9 12 15 12 15 22"/>
-  </svg>
-  Configure dashboard paths
-</button>
   ${closeRemoteButtonHtml}
 </footer>
 <script>
@@ -997,6 +1098,72 @@ function getWebviewContent(
           command: 'closeRemote'
       });
   }
+
+  function toggleLayout() {
+      const button = document.querySelector('.layout-toggle-button');
+      const currentLayout = button.dataset.layout;
+      const newLayout = currentLayout === 'grid' ? 'list' : 'grid';
+      
+      // Update all host grids
+      document.querySelectorAll('.host-grid').forEach(grid => {
+          grid.classList.remove('layout-grid', 'layout-list');
+          grid.classList.add('layout-' + newLayout);
+      });
+      
+      // Update button
+      button.dataset.layout = newLayout;
+      if (newLayout === 'grid') {
+          button.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Grid View';
+      } else {
+          button.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> List View';
+      }
+      
+      vscode.postMessage({
+          command: 'updateLayout',
+          layout: newLayout
+      });
+  }
+  
+  // Handle section collapse/expand button clicks
+  document.addEventListener('click', function(event) {
+      const collapseButton = event.target.closest('.section-collapse-button');
+      if (collapseButton && collapseButton.dataset.section) {
+          const section = collapseButton.dataset.section;
+          const sectionElement = collapseButton.closest('.section');
+          if (sectionElement) {
+              const isCollapsed = sectionElement.classList.contains('collapsed');
+              
+              // Toggle collapsed state
+              if (isCollapsed) {
+                  sectionElement.classList.remove('collapsed');
+              } else {
+                  sectionElement.classList.add('collapsed');
+              }
+              
+              // Update icon
+              const icon = collapseButton.querySelector('svg polyline');
+              if (icon) {
+                  if (isCollapsed) {
+                      icon.setAttribute('points', '6 9 12 15 18 9');
+                  } else {
+                      icon.setAttribute('points', '9 18 15 12 9 6');
+                  }
+              }
+              
+              // Update button title
+              collapseButton.title = isCollapsed ? 'Collapse section' : 'Expand section';
+              
+              // Save state
+              vscode.postMessage({
+                  command: 'updateSectionCollapsed',
+                  section: section,
+                  collapsed: !isCollapsed
+              });
+              
+              event.stopPropagation();
+          }
+      }
+  });
   
   // Handle section color palette toggle and selection
   document.addEventListener('click', function(event) {
@@ -1029,7 +1196,8 @@ function getWebviewContent(
               // Update preview color
               const previewElement = container.querySelector('.section-color-palette-preview');
               if (previewElement) {
-                  previewElement.style.backgroundColor = color;
+                  // Use CSS variable for empty string (theme default), otherwise use the color
+                  previewElement.style.backgroundColor = color || 'var(--vscode-textLink-foreground)';
               }
               
               container.classList.remove('active');
@@ -1081,12 +1249,12 @@ function getWebviewContent(
   
   // Predefined color palette (20 colors)
   // First color is empty string representing theme default (vscode-textLink-foreground)
-  const colorPalette = [
-      '', '#107c10', '#ff8c00', '#e81123', '#8764b8',
-      '#00bcf2', '#ffb900', '#bad80a', '#0099bc', '#ff4343',
-      '#5c2d91', '#00a4ef', '#ffaa44', '#7fba00', '#f25022',
-      '#737373', '#005e50', '#004b1c', '#012d49', '#bf0077'
-  ];
+        const colorPalette = [
+                 '', "#ffadad","#ffd6a5","#fdffb6","#caffbf","#9bf6ff","#a0c4ff","#bdb2ff","#ffc6ff","#ffd9d9",
+          '#000000', "#e03524","#f07c12","#ffc200","#90bc1a","#21b534","#0095ac","#1f64ad","#4040a0","#903498",
+          '#888888', "#f94144","#f3722c","#f8961e","#f9c74f","#90be6d","#43aa8b","#4d908e","#577590","#277da1",
+          '#ffffff', "#ef476f","#f78c6b","#ffd166","#83d483","#06d6a0","#0cb0a9","#118ab2","#0c637f","#073b4c"
+      ];
   
   function openIconSelector(host, hostType) {
       // Get current icon and color for this host
@@ -1258,7 +1426,9 @@ function getWebviewContent(
   }
   
   // Initialize on page load
-  initializeLucideIcons();
+  setTimeout(() => {
+      initializeLucideIcons();
+  }, 100);
   
   // Re-initialize Lucide icons after DOM updates (debounced)
   let iconInitTimeout;
@@ -1290,6 +1460,9 @@ function getWebviewContent(
 </html>`;
 }
 
+
+// Store reference to the dashboard panel to allow updates
+let dashboardPanel: vscode.WebviewPanel | undefined = undefined;
 
 /**
 * This method is called when your extension is activated.
@@ -1347,15 +1520,34 @@ export function activate(context: vscode.ExtensionContext) {
       // Check for new hosts before showing the dashboard
       await generateDefaultHostSettings();
       
+      // If panel already exists, reveal it and update content, otherwise create new one
+      if (dashboardPanel) {
+          dashboardPanel.reveal(vscode.ViewColumn.One);
+          // Update content with fresh settings (this ensures collapsed state is read from settings)
+          const hosts = await getAllHosts();
+          dashboardPanel.webview.html = getWebviewContent(hosts, context.extensionUri, dashboardPanel.webview);
+          return;
+      }
+      
+      // Create the panel - always create new to ensure fresh state is loaded
       const panel = vscode.window.createWebviewPanel(
           'dasshboard',           // Identifies the type of the webview.
           'DaSSHboard',          // Title of the panel.
           vscode.ViewColumn.One,         // Editor column to show the new webview panel in.
           {
               enableScripts: true,       // Enable JavaScript in the webview
-              localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')] // Allow access to the media folder
+              localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')], // Allow access to the media folder
+              retainContextWhenHidden: false // Don't retain context to ensure fresh state is always loaded
           }
       );
+      
+      // Store panel reference
+      dashboardPanel = panel;
+      
+      // Dispose panel reference when it's closed
+      panel.onDidDispose(() => {
+          dashboardPanel = undefined;
+      });
 
       const hosts = await getAllHosts();
       panel.webview.html = getWebviewContent(hosts, context.extensionUri, panel.webview);
@@ -1415,28 +1607,69 @@ export function activate(context: vscode.ExtensionContext) {
                   case 'updateSectionColor':
                       const section = message.section;
                       const color = message.color;
-                      const configKey = section === 'ssh' ? 'sshSectionColor' : 'wslSectionColor';
+                      let configKey: string;
+                      if (section === 'ssh') {
+                          configKey = 'sshSectionColor';
+                      } else if (section === 'wsl') {
+                          configKey = 'wslSectionColor';
+                      } else if (section === 'docker') {
+                          configKey = 'dockerSectionColor';
+                      } else {
+                          return;
+                      }
                       const config = vscode.workspace.getConfiguration('daSSHboard');
                       config.update(configKey, color, vscode.ConfigurationTarget.Global).then(async () => {
                           // Check for new hosts before reloading
                           await generateDefaultHostSettings();
                           // Reload the webview to apply the new color
-                          const hosts = await getAllHosts();
-                          panel.webview.html = getWebviewContent(hosts, context.extensionUri, panel.webview);
+                          if (dashboardPanel) {
+                              const hosts = await getAllHosts();
+                              dashboardPanel.webview.html = getWebviewContent(hosts, context.extensionUri, dashboardPanel.webview);
+                          }
                       });
+                      return;
+                  case 'updateSectionCollapsed':
+                      const collapsedSection = message.section;
+                      const collapsed = message.collapsed;
+                      let collapsedConfigKey: string;
+                      if (collapsedSection === 'ssh') {
+                          collapsedConfigKey = 'sshSectionCollapsed';
+                      } else if (collapsedSection === 'wsl') {
+                          collapsedConfigKey = 'wslSectionCollapsed';
+                      } else if (collapsedSection === 'docker') {
+                          collapsedConfigKey = 'dockerSectionCollapsed';
+                      } else {
+                          return;
+                      }
+                      const collapsedConfig = vscode.workspace.getConfiguration('daSSHboard');
+                      collapsedConfig.update(collapsedConfigKey, collapsed, vscode.ConfigurationTarget.Global).then(async () => {
+                          // Reload the webview to apply the new collapsed state
+                          if (dashboardPanel) {
+                              const hosts = await getAllHosts();
+                              dashboardPanel.webview.html = getWebviewContent(hosts, context.extensionUri, dashboardPanel.webview);
+                          }
+                      });
+                      return;
+                  case 'updateLayout':
+                      const newLayout = message.layout;
+                      const layoutConfig = vscode.workspace.getConfiguration('daSSHboard');
+                      layoutConfig.update('layout', newLayout, vscode.ConfigurationTarget.Global);
+                      // No need to reload - the JS already updates the DOM
                       return;
                   case 'getHostSettings':
                       const hostName = message.host;
                       const hostConfig = vscode.workspace.getConfiguration('daSSHboard');
                       const hostsConfig = hostConfig.get<Record<string, HostSettings>>('hosts') || {};
                       const hostSettings = hostsConfig[hostName] || {};
-                      panel.webview.postMessage({
-                          command: 'hostSettingsResponse',
-                          host: hostName,
-                          hostType: message.hostType,
-                          currentIcon: hostSettings.icon || '',
-                          currentColor: hostSettings.color || ''
-                      });
+                      if (dashboardPanel) {
+                          dashboardPanel.webview.postMessage({
+                              command: 'hostSettingsResponse',
+                              host: hostName,
+                              hostType: message.hostType,
+                              currentIcon: hostSettings.icon || '',
+                              currentColor: hostSettings.color || ''
+                          });
+                      }
                       return;
                   case 'updateHostIcon':
                       const updateHostName = message.host;
@@ -1451,8 +1684,10 @@ export function activate(context: vscode.ExtensionContext) {
                           // Check for new hosts before reloading
                           await generateDefaultHostSettings();
                           // Reload the webview to apply the new icon and color
-                          const hosts = await getAllHosts();
-                          panel.webview.html = getWebviewContent(hosts, context.extensionUri, panel.webview);
+                          if (dashboardPanel) {
+                              const hosts = await getAllHosts();
+                              dashboardPanel.webview.html = getWebviewContent(hosts, context.extensionUri, dashboardPanel.webview);
+                          }
                       });
                       return;
               }
@@ -1505,7 +1740,7 @@ export function activate(context: vscode.ExtensionContext) {
       } catch (error) {
           message += `\n\nError getting hosts: ${error}`;
       }
-
+// 
       vscode.window.showInformationMessage(message);
   });
 
@@ -1522,50 +1757,74 @@ export function activate(context: vscode.ExtensionContext) {
           // For WSL: vscode-remote://wsl+<distro>/path
           remoteUri = vscode.Uri.parse(`vscode-remote://wsl+${host}${folder}`);
       } else if (hostType === 'docker') {
-          // For Docker: vscode-remote://attached-container+<containerIdHex>/<path>
-          // The host parameter contains the full container ID (64-char hex from docker ps --no-trunc)
+          // For Docker: vscode-remote://attached-container+<hexEncodedJSON>/<path>
+          // VS Code remote extension expects hex-encoded JSON with containerName
+          // The host parameter contains the container name
           
-          console.log(`DaSSHboard: Raw host parameter:`, host);
-          console.log(`DaSSHboard: Host parameter length: ${host.length}`);
-          console.log(`DaSSHboard: First 20 chars: ${host.substring(0, 20)}`);
-          console.log(`DaSSHboard: Last 20 chars: ${host.substring(host.length - 20)}`);
-          
-          // Clean the container ID - should be lowercase hex without any special chars
-          const cleanContainerId = host.toLowerCase().replace(/[^a-f0-9]/g, '');
-          
-          console.log(`DaSSHboard: Cleaned container ID length: ${cleanContainerId.length}`);
-          console.log(`DaSSHboard: Expected: 64 characters (full container ID)`);
-          console.log(`DaSSHboard: Connecting to container ID: ${cleanContainerId.substring(0, 12)}...${cleanContainerId.substring(cleanContainerId.length - 12)}`);
+          console.log(`DaSSHboard: Container name: ${host}`);
           console.log(`DaSSHboard: Folder: ${folder}`);
           
-          // Validate container ID format
-          if (cleanContainerId.length !== 64) {
-              const errorMsg = `Invalid container ID length: ${cleanContainerId.length} (expected 64). ID: ${cleanContainerId.substring(0, 20)}...`;
-              console.error(`DaSSHboard: ${errorMsg}`);
-              vscode.window.showErrorMessage(errorMsg);
-              return;
+          // Create JSON object with containerName
+          // Format: {"containerName":"container_name"}
+          const containerJson = JSON.stringify({ containerName: host });
+          
+          // Hex-encode the JSON string
+          const hexEncoded = Buffer.from(containerJson, 'utf8').toString('hex');
+          
+          console.log(`DaSSHboard: Container JSON: ${containerJson}`);
+          console.log(`DaSSHboard: Hex-encoded: ${hexEncoded}`);
+          
+          // Normalize the folder path
+          // For root path, use empty string to avoid // issues when VS Code opens terminals
+          // VS Code's terminal opening mechanism may append paths, causing // if we use /
+          let normalizedPath = (folder || '/').trim();
+          
+          // For root, use empty string (VS Code will interpret this as root)
+          // This prevents // when VS Code constructs terminal URIs
+          if (normalizedPath === '/' || normalizedPath === '') {
+              normalizedPath = '';
+          } else {
+              // Ensure path starts with / (but not //)
+              if (!normalizedPath.startsWith('/')) {
+                  normalizedPath = '/' + normalizedPath;
+              }
+              // Remove any double slashes (but keep the leading single slash)
+              normalizedPath = normalizedPath.replace(/\/\//g, '/');
           }
           
-          // Normalize the folder path - ensure it starts with / and has no double slashes
-          let normalizedPath = (folder || '/').trim();
-          // Remove any leading slashes
-          normalizedPath = normalizedPath.replace(/^\/+/, '');
-          // Add back exactly one leading slash
-          normalizedPath = '/' + normalizedPath;
-          // Remove any double slashes
-          normalizedPath = normalizedPath.replace(/\/\//g, '/');
+          console.log(`DaSSHboard: Normalized path: "${normalizedPath}" (empty for root)`);
           
-          console.log(`DaSSHboard: Normalized path: ${normalizedPath}`);
+          // Construct URI string directly - ensure exactly one / after authority
+          // Format: vscode-remote://attached-container+<hexEncodedJSON>/<path>
+          // For root (empty path), the URI should end with / after authority
+          const uriString = normalizedPath === '' 
+              ? `vscode-remote://attached-container+${hexEncoded}/`
+              : `vscode-remote://attached-container+${hexEncoded}${normalizedPath}`;
           
-          // Use Uri.from() with explicit components to avoid parsing issues
+          console.log(`DaSSHboard: URI string: ${uriString}`);
+          
           try {
-              remoteUri = vscode.Uri.from({
-                  scheme: 'vscode-remote',
-                  authority: `attached-container+${cleanContainerId}`,
-                  path: normalizedPath
-              });
+              // Parse the URI string - this ensures proper formatting
+              remoteUri = vscode.Uri.parse(uriString);
               
               console.log(`DaSSHboard: Constructed URI: ${remoteUri.toString()}`);
+              console.log(`DaSSHboard: URI scheme: ${remoteUri.scheme}, authority: ${remoteUri.authority}, path: "${remoteUri.path}"`);
+              
+              // Verify authority is preserved (critical for terminal opening)
+              if (!remoteUri.authority || !remoteUri.authority.startsWith('attached-container+')) {
+                  console.error(`DaSSHboard: ERROR - Authority not preserved: "${remoteUri.authority}"`);
+                  vscode.window.showErrorMessage(`Failed to construct container URI: Authority not preserved`);
+                  return;
+              }
+              
+              // Verify path doesn't start with // (this would cause terminal errors)
+              if (remoteUri.path && remoteUri.path.startsWith('//')) {
+                  console.error(`DaSSHboard: ERROR - Path starts with //: "${remoteUri.path}"`);
+                  // Reconstruct with single slash
+                  const fixedUriString = uriString.replace(/\/\//g, '/');
+                  remoteUri = vscode.Uri.parse(fixedUriString);
+                  console.log(`DaSSHboard: Fixed URI: ${remoteUri.toString()}`);
+              }
           } catch (error) {
               console.error(`DaSSHboard: Error constructing URI:`, error);
               vscode.window.showErrorMessage(`Failed to construct container URI: ${error}`);

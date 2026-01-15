@@ -1,9 +1,9 @@
 <svg width="1000" height="1000" viewBox="0 0 1000 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect x="30" y="248" width="790.77" height="619.266" rx="39" stroke="black" stroke-width="60" stroke-linejoin="round"/>
+<rect x="30" y="248" width="790.77" height="619.266" rx="39" stroke="currentColor" stroke-width="60" stroke-linejoin="round"/>
 <mask id="path-2-inside-1_1_8" fill="none">
 <rect x="42" y="272" width="765" height="65" rx="22"/>
 </mask>
-<rect x="42" y="272" width="765" height="65" rx="22" fill="none" stroke="black" stroke-width="65" mask="url(#path-2-inside-1_1_8)"/>
-<path d="M864 726.266H930.77C952.309 726.266 969.77 708.805 969.77 687.266V146C969.77 124.461 952.309 107 930.77 107H218C196.461 107 179 124.461 179 146V211" stroke="black" stroke-width="60" stroke-linejoin="round"/>
-<path d="M373.435 430.373L690.733 430.373M690.733 430.373L690.733 749.991M690.733 430.373L371.115 749.991" stroke="black" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="42" y="272" width="765" height="65" rx="22" fill="none" stroke="currentColor" stroke-width="65" mask="url(#path-2-inside-1_1_8)"/>
+<path d="M864 726.266H930.77C952.309 726.266 969.77 708.805 969.77 687.266V146C969.77 124.461 952.309 107 930.77 107H218C196.461 107 179 124.461 179 146V211" stroke="currentColor" stroke-width="60" stroke-linejoin="round"/>
+<path d="M373.435 430.373L690.733 430.373M690.733 430.373L690.733 749.991M690.733 430.373L371.115 749.991" stroke="currentColor" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
