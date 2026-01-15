@@ -9,7 +9,7 @@ Supercharge Your Remote Development Workflow with One-click access to your remot
 
 DaSSHboard is a stylish, intuitive dashboard for VS Code-based IDEs that puts your remote development enviroments available at your fingetips, only one click away.
 
-Access your <picture><source media="(prefers-color-scheme: dark)" srcset="media/hosts/server_white.svg"><img src="media/hosts/server.svg" width="18" height="18" alt="SSH" style="vertical-align: middle;"></picture> **SSH connections**, <picture><source media="(prefers-color-scheme: dark)" srcset="media/hosts/linux_white.svg"><img src="media/hosts/linux.svg" width="18" height="18" alt="WSL" style="vertical-align: middle;"></picture> **WSL distros**, and <picture><source media="(prefers-color-scheme: dark)" srcset="media/hosts/docker_white.svg"><img src="media/hosts/docker.svg" width="18" height="18" alt="Docker" style="vertical-align: middle;"></picture> **Running Docker containers** — all from one convenient dashboard. 
+Access your **SSH connections**, **WSL distros**, and **running Docker containers** — all from one convenient dashboard.
 
 Never waste time hunting for host details again!
 
@@ -49,7 +49,7 @@ You can also download the `.vsix` file from the [latest release](https://github.
 1. **Install** the extension.  
 2. Hit the **`DaSSHboard button`** (second from the left in the status-bar), use the Remote menu, *or* run **"Show DaSSHboard"** from the Command Palette.  
 3. All your remote development environments are now one click away! 
-4. Click the <picture><source media="(prefers-color-scheme: dark)" srcset="media/current-window-white.svg"><img src="media/current-window.svg" width="22" alt="Current window" style="vertical-align: middle;"></picture> (open in current window) or <picture><source media="(prefers-color-scheme: dark)" srcset="media/new-window-white.svg"><img src="media/new-window.svg" width="22" alt="New window" style="vertical-align: middle;"></picture> (open in new window) button next to one of the available entrypoint paths on the remote host, and you'll jump straight into that environment!
+4. Click the <picture><source media="(prefers-color-scheme: dark)" srcset="media/readme/current-window-white.png"><img src="media/readme/current-window.png" width="22" alt="Current window" style="vertical-align: middle;"></picture> (open in current window) or <picture><source media="(prefers-color-scheme: dark)" srcset="media/readme/new-window-white.png"><img src="media/readme/new-window.png" width="22" alt="New window" style="vertical-align: middle;"></picture> (open in new window) button next to one of the available entrypoint paths on the remote host, and you'll jump straight into that environment!
 
 **Notes:** 
 - WSL support is available on Windows systems with the [WSL extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-wsl) installed. 
