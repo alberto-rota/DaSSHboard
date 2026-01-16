@@ -2,7 +2,7 @@
   "name": "dasshboard",
   "displayName": "DaSSHboard",
   "description": "A stylish, theme-aware dashboard for quickly connecting to SSH hosts, WSL distros and Docker containers with customizable settings",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "publisher": "AlbertoRota",
   "extensionKind": [
     "ui"
