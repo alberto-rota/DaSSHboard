@@ -1,60 +1,3 @@
-/**
- * Generates default settings for all hosts (SSH, WSL, and Docker).
- * This ensures that all hosts are pre-populated in the settings.
- * Called on extension activation and when dashboard is opened.
- */
-async function generateDefaultHostSettings(): Promise<void> {
-  try {
-      console.log('DaSSHboard: Checking for new hosts and updating settings...');
-      
-      // Get all hosts from SSH config and WSL (Docker containers are not saved to settings)
-      const allHosts = await getAllHosts();
-      const hosts = [...allHosts.ssh, ...allHosts.wsl];
-      
-      // Get current settings
-      const config = vscode.workspace.getConfiguration('daSSHboard');
-      let hostsConfig = config.get<Record<string, HostSettings>>('hosts') || {};
-      let settingsUpdated = false;
-      const newHosts: string[] = [];
-      
-      // Create default settings for each host if not already present
-      for (const host of hosts) {
-          if (!hostsConfig[host.name]) {
-              // Default folder based on type and user
-              let defaultFolder = '/home';
-              
-              if (host.type === 'ssh') {
-                  defaultFolder = host.user ? `/home/${host.user}` : '/home';
-              } else if (host.type === 'wsl') {
-                  // For WSL, default to home directory
-                  defaultFolder = '/home';
-              } else if (host.type === 'docker') {
-                  // For Docker, default to common workspace directories
-                  defaultFolder = '/workspaces';
-              }
-              
-              hostsConfig[host.name] = {
-                  folders: [defaultFolder],
-                  color: '',  // Empty but present
-                  icon: ''    // Empty but present
-              };
-              
-              newHosts.push(host.name);
-              settingsUpdated = true;
-          }
-      }
-      
-      // Update the configuration if changes were made
-      if (settingsUpdated) {
-          await config.update('hosts', hostsConfig, vscode.ConfigurationTarget.Global);
-          console.log(`DaSSHboard: Added ${newHosts.length} new host(s) to settings: ${newHosts.join(', ')}`);
-      } else {
-          console.log('DaSSHboard: No new hosts detected. Settings are up to date.');
-      }
-  } catch (error) {
-      console.error('DaSSHboard: Error generating default host settings:', error);
-  }
-}
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -168,10 +111,35 @@ function getHue(color: string): number {
 }
 
 /**
+* Helper function to create a timeout promise
+*/
+function createTimeoutPromise(ms: number): Promise<never> {
+  return new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms);
+  });
+}
+
+/**
+* Helper function to race a promise against a timeout
+*/
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([promise, createTimeoutPromise(ms)]);
+}
+
+/**
 * Reads the default SSH config file (~/.ssh/config) and extracts host aliases
 * and hostname information.
 */
 async function getSshHosts(): Promise<HostConfig[]> {
+  try {
+      return await withTimeout(getSshHostsInternal(), 3000);
+  } catch (error) {
+      console.error('DaSSHboard: Error or timeout getting SSH hosts:', error);
+      return [];
+  }
+}
+
+async function getSshHostsInternal(): Promise<HostConfig[]> {
   const configPath = path.join(os.homedir(), '.ssh', 'config');
   if (!fs.existsSync(configPath)) {
       return [];
@@ -230,15 +198,15 @@ async function getSshHosts(): Promise<HostConfig[]> {
   // Resolve IP addresses for all hosts
   const hostConfigsArray = Array.from(hostConfigs.values());
   
-  // Resolve IP addresses (async)
+  // Resolve IP addresses (async) with timeout per host
   for (const config of hostConfigsArray) {
       try {
           // Only resolve if hostname is not already an IP address
           if (!/^\d+\.\d+\.\d+\.\d+$/.test(config.hostname)) {
-              config.ip = await resolveHostnameToIp(config.hostname);
+              config.ip = await withTimeout(resolveHostnameToIp(config.hostname), 2000);
           }
       } catch (error) {
-          // Could not resolve IP
+          // Could not resolve IP (timeout or error) - continue without IP
           console.error(`Could not resolve IP for ${config.hostname}: ${error}`);
       }
   }
@@ -300,12 +268,16 @@ async function getWslDistros(): Promise<HostConfig[]> {
   try {
       console.log('DaSSHboard: Attempting to detect WSL distros...');
       
-      // Execute wsl --list --verbose to get all distros
-      const { stdout } = await execAsync('wsl --list --verbose', { 
-          encoding: 'utf16le',  // WSL outputs in UTF-16LE on Windows
-          windowsHide: true 
-      });
+      // Execute wsl --list --verbose to get all distros with 3 second timeout
+      const result = await withTimeout(
+          execAsync('wsl --list --verbose', { 
+              encoding: 'utf16le',  // WSL outputs in UTF-16LE on Windows
+              windowsHide: true 
+          }),
+          3000
+      );
 
+      const stdout = result.stdout;
       console.log('DaSSHboard: WSL command output:', stdout);
       
       const lines = stdout.split(/\r?\n/).filter(line => line.trim());
@@ -434,7 +406,7 @@ async function getWslDistros(): Promise<HostConfig[]> {
       console.log(`DaSSHboard: Found ${distros.length} WSL distro(s)`);
       return distros;
   } catch (error) {
-      console.error('DaSSHboard: Error getting WSL distros:', error);
+      console.error('DaSSHboard: Error or timeout getting WSL distros:', error);
       return [];
   }
 }
@@ -490,11 +462,14 @@ async function getDockerContainers(): Promise<HostConfig[]> {
       // Execute docker ps to get running containers
       // Use --no-trunc to get full container ID (64 chars hex)
       // Format: FullID|Name|Image|Status
-      const { stdout } = await execAsync('docker ps --no-trunc --format "{{.ID}}|{{.Names}}|{{.Image}}|{{.Status}}"', { 
-          windowsHide: true,
-          timeout: 5000  // 5 second timeout
-      });
+      const result = await withTimeout(
+          execAsync('docker ps --no-trunc --format "{{.ID}}|{{.Names}}|{{.Image}}|{{.Status}}"', { 
+              windowsHide: true
+          }),
+          3000  // 3 second timeout
+      );
 
+      const stdout = result.stdout;
       console.log('DaSSHboard: Docker command output:', stdout);
       
       const lines = stdout.split(/\r?\n/).filter(line => line.trim());
@@ -535,7 +510,7 @@ async function getDockerContainers(): Promise<HostConfig[]> {
       console.log(`DaSSHboard: Found ${containers.length} Docker container(s)`);
       return containers;
   } catch (error) {
-      console.error('DaSSHboard: Error getting Docker containers:', error);
+      console.error('DaSSHboard: Error or timeout getting Docker containers:', error);
       console.error('DaSSHboard: Make sure Docker is installed and running');
       return [];
   }
@@ -559,6 +534,64 @@ async function getAllHosts(): Promise<{
       wsl: wslDistros,
       docker: dockerContainers
   };
+}
+
+/**
+ * Generates default settings for all hosts (SSH, WSL, and Docker).
+ * This ensures that all hosts are pre-populated in the settings.
+ * Called on extension activation and when dashboard is opened.
+ */
+async function generateDefaultHostSettings(): Promise<void> {
+  try {
+      console.log('DaSSHboard: Checking for new hosts and updating settings...');
+      
+      // Get all hosts from SSH config and WSL (Docker containers are not saved to settings)
+      const allHosts = await getAllHosts();
+      const hosts = [...allHosts.ssh, ...allHosts.wsl];
+      
+      // Get current settings
+      const config = vscode.workspace.getConfiguration('daSSHboard');
+      let hostsConfig = config.get<Record<string, HostSettings>>('hosts') || {};
+      let settingsUpdated = false;
+      const newHosts: string[] = [];
+      
+      // Create default settings for each host if not already present
+      for (const host of hosts) {
+          if (!hostsConfig[host.name]) {
+              // Default folder based on type and user
+              let defaultFolder = '/home';
+              
+              if (host.type === 'ssh') {
+                  defaultFolder = host.user ? `/home/${host.user}` : '/home';
+              } else if (host.type === 'wsl') {
+                  // For WSL, default to home directory
+                  defaultFolder = '/home';
+              } else if (host.type === 'docker') {
+                  // For Docker, default to common workspace directories
+                  defaultFolder = '/workspaces';
+              }
+              
+              hostsConfig[host.name] = {
+                  folders: [defaultFolder],
+                  color: '',  // Empty but present
+                  icon: ''    // Empty but present
+              };
+              
+              newHosts.push(host.name);
+              settingsUpdated = true;
+          }
+      }
+      
+      // Update the configuration if changes were made
+      if (settingsUpdated) {
+          await config.update('hosts', hostsConfig, vscode.ConfigurationTarget.Global);
+          console.log(`DaSSHboard: Added ${newHosts.length} new host(s) to settings: ${newHosts.join(', ')}`);
+      } else {
+          console.log('DaSSHboard: No new hosts detected. Settings are up to date.');
+      }
+  } catch (error) {
+      console.error('DaSSHboard: Error generating default host settings:', error);
+  }
 }
 
 /**
@@ -628,19 +661,19 @@ function generateHostCards(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
                      style="width: 24px; height: 24px; color: var(--vscode-textLink-foreground);"></i>`;
               } else if (host.settings.color) {
                 hostIconHtml = `
-                  <i data-lucide="${lucideIconName}"
-                     class="host-icon ${clickableClass} lucide-icon"
-                     ${iconDataAttrs}
-                     style="width: 24px; height: 24px; color: ${host.settings.color}; --host-color: ${host.settings.color}; --host-color-hue: ${getHue(host.settings.color)};"
-                     ${iconTitle}></i>`;
+                  <span class="clickable-icon-wrapper" ${iconDataAttrs} ${iconTitle}>
+                    <i data-lucide="${lucideIconName}"
+                       class="host-icon lucide-icon"
+                       style="width: 24px; height: 24px; color: ${host.settings.color}; --host-color: ${host.settings.color}; --host-color-hue: ${getHue(host.settings.color)};"></i>
+                  </span>`;
               } else {
                 // For default color, use CSS variable for theme color
                 hostIconHtml = `
-                  <i data-lucide="${lucideIconName}"
-                     class="host-icon ${clickableClass} lucide-icon theme-colored-lucide"
-                     ${iconDataAttrs}
-                     style="width: 24px; height: 24px; color: var(--vscode-textLink-foreground);"
-                     ${iconTitle}></i>`;
+                  <span class="clickable-icon-wrapper" ${iconDataAttrs} ${iconTitle}>
+                    <i data-lucide="${lucideIconName}"
+                       class="host-icon lucide-icon theme-colored-lucide"
+                       style="width: 24px; height: 24px; color: var(--vscode-textLink-foreground);"></i>
+                  </span>`;
               }
             }
             /* ─── 2 ▸ otherwise treat value as local SVG filename (existing logic) ─── */
@@ -668,30 +701,30 @@ function generateHostCards(hosts: HostConfig[], extensionUri: vscode.Uri, webvie
                     </span>`;
               } else if (host.settings.color) {
                   hostIconHtml = `
-                    <img src="${hostIconPath}"
-                         class="host-icon ${iconClass} ${clickableClass} light-theme-only"
-                         ${iconColorStyle}
-                         ${iconDataAttrs}
-                         alt="${host.name} icon"
-                         ${iconTitle} />
-                    <img src="${hostIconWhitePath}"
-                         class="host-icon ${iconClass} ${clickableClass} dark-theme-only"
-                         ${iconColorStyle}
-                         ${iconDataAttrs}
-                         alt="${host.name} icon"
-                         ${iconTitle}/>`;
+                    <span class="clickable-icon-wrapper light-theme-only" ${iconDataAttrs} ${iconTitle}>
+                      <img src="${hostIconPath}"
+                           class="host-icon ${iconClass}"
+                           ${iconColorStyle}
+                           alt="${host.name} icon" />
+                    </span>
+                    <span class="clickable-icon-wrapper dark-theme-only" ${iconDataAttrs} ${iconTitle}>
+                      <img src="${hostIconWhitePath}"
+                           class="host-icon ${iconClass}"
+                           ${iconColorStyle}
+                           alt="${host.name} icon" />
+                    </span>`;
               } else {
                   // For default color, use mask approach with textLink color
                   hostIconHtml = `
-                    <span class="host-icon-wrapper theme-colored-icon-wrapper light-theme-only" style="--icon-src: url('${hostIconPath}');">
-                      <span class="host-icon theme-colored-svg ${clickableClass}"
-                           ${iconDataAttrs}
-                           ${iconTitle}></span>
+                    <span class="clickable-icon-wrapper light-theme-only" ${iconDataAttrs} ${iconTitle}>
+                      <span class="host-icon-wrapper theme-colored-icon-wrapper" style="--icon-src: url('${hostIconPath}');">
+                        <span class="host-icon theme-colored-svg"></span>
+                      </span>
                     </span>
-                    <span class="host-icon-wrapper theme-colored-icon-wrapper dark-theme-only" style="--icon-src: url('${hostIconWhitePath}');">
-                      <span class="host-icon theme-colored-svg ${clickableClass}"
-                           ${iconDataAttrs}
-                           ${iconTitle}></span>
+                    <span class="clickable-icon-wrapper dark-theme-only" ${iconDataAttrs} ${iconTitle}>
+                      <span class="host-icon-wrapper theme-colored-icon-wrapper" style="--icon-src: url('${hostIconWhitePath}');">
+                        <span class="host-icon theme-colored-svg"></span>
+                      </span>
                     </span>`;
               }
             }
@@ -1173,17 +1206,18 @@ function getWebviewContent(
       
       // Toggle palette visibility when clicking the preview
       if (preview && colorPaletteContainer) {
+          event.stopPropagation();
           const isActive = colorPaletteContainer.classList.contains('active');
           document.querySelectorAll('.section-color-palette-container').forEach(c => c.classList.remove('active'));
           if (!isActive) {
               colorPaletteContainer.classList.add('active');
           }
-          event.stopPropagation();
           return;
       }
       
       // Handle color selection
       if (colorOption && colorOption.dataset.section) {
+          event.stopPropagation();
           const section = colorOption.dataset.section;
           const color = colorOption.dataset.color;
           
@@ -1208,22 +1242,25 @@ function getWebviewContent(
               section: section,
               color: color
           });
-          event.stopPropagation();
+          return;
       } else if (!colorPaletteContainer) {
           // Close all palettes when clicking outside
           document.querySelectorAll('.section-color-palette-container').forEach(c => c.classList.remove('active'));
       }
-  });
+  }, true); // Use capture phase
   
-  // Handle host icon clicks
+  // Handle host icon clicks - use capture phase for early interception
   document.addEventListener('click', function(event) {
-      const icon = event.target.closest('.clickable-host-icon');
-      if (icon && icon.dataset.host) {
-          const host = icon.dataset.host;
-          const hostType = icon.dataset.hostType;
+      const iconWrapper = event.target.closest('.clickable-icon-wrapper');
+      if (iconWrapper && iconWrapper.dataset.host) {
+          event.stopImmediatePropagation();
+          event.stopPropagation();
+          event.preventDefault();
+          const host = iconWrapper.dataset.host;
+          const hostType = iconWrapper.dataset.hostType;
           openIconSelector(host, hostType);
       }
-  });
+  }, true); // Use capture phase to ensure we catch the event early
   
   // Curated Lucide icons for machines, operating systems, and servers
   const lucideIcons = [
@@ -1357,18 +1394,20 @@ function getWebviewContent(
       
       // Handle color selection
       modal.querySelectorAll('.color-option').forEach(option => {
-          option.addEventListener('click', function() {
+          option.addEventListener('click', function(event) {
+              event.stopPropagation();
               modal.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
               this.classList.add('selected');
-          });
+          }, true);
       });
       
       // Handle icon selection
       modal.querySelectorAll('.icon-option').forEach(option => {
-          option.addEventListener('click', function() {
+          option.addEventListener('click', function(event) {
+              event.stopPropagation();
               modal.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
               this.classList.add('selected');
-          });
+          }, true);
       });
       
       // Initialize Lucide icons in the modal
