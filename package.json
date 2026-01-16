@@ -2,7 +2,7 @@
   "name": "dasshboard",
   "displayName": "DaSSHboard",
   "description": "A stylish, theme-aware dashboard for quickly connecting to SSH hosts, WSL distros and Docker containers with customizable settings",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "publisher": "AlbertoRota",
   "extensionKind": [
     "ui"
@@ -103,7 +103,10 @@
         "daSSHboard.layout": {
           "type": "string",
           "default": "grid",
-          "enum": ["grid", "list"],
+          "enum": [
+            "grid",
+            "list"
+          ],
           "enumDescriptions": [
             "Display hosts in a grid layout",
             "Display hosts in a list layout"
