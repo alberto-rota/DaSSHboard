@@ -140,23 +140,6 @@
           "default": {}
         }
       }
-    },
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "dasshboardContainer",
-          "title": "DaSSHboard",
-          "icon": "media/readme/icon.png"
-        }
-      ]
-    },
-    "views": {
-      "dasshboardContainer": [
-        {
-          "id": "dasshboardView",
-          "name": "DaSSHboard"
-        }
-      ]
     }
   },
   "scripts": {

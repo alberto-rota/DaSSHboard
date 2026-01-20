@@ -895,36 +895,19 @@ function getWebviewContent(
       // Section-specific icons - colored with section color
       const sectionIconColor = currentColor || 'var(--vscode-textLink-foreground)';
       let sectionIcon = '';
+      let lucideIconName = 'server';
+      
       if (sectionType === 'wsl') {
-        // Use the same docker.svg icon as host cards
-        const wslIconPath = webview.asWebviewUri(
-            vscode.Uri.joinPath(extensionUri, 'media', 'hosts', 'linux_white.svg'));
-        
-        // Use section color for Docker icon with inline style
-        sectionIcon = `
-            <span class="section-icon-wrapper theme-colored-icon-wrapper dark-theme-only" style="--icon-src: url('${wslIconPath}'); width: 18px; height: 18px; display: inline-block;">
-                <span class="section-icon theme-colored-svg" style="width: 18px; height: 18px; background-color: ${sectionIconColor};"></span>
-            </span>`;
+          lucideIconName = 'terminal';
       } else if (sectionType === 'docker') {
-          // Use the same docker.svg icon as host cards
-          const dockerIconPath = webview.asWebviewUri(
-              vscode.Uri.joinPath(extensionUri, 'media', 'hosts', 'docker_white.svg'));
-          
-          // Use section color for Docker icon with inline style
-          sectionIcon = `
-              <span class="section-icon-wrapper theme-colored-icon-wrapper dark-theme-only" style="--icon-src: url('${dockerIconPath}'); width: 18px; height: 18px; display: inline-block;">
-                  <span class="section-icon theme-colored-svg" style="width: 18px; height: 18px; background-color: ${sectionIconColor};"></span>
-              </span>`;
+          lucideIconName = 'container';
       } else {
-            const sshIconPath = webview.asWebviewUri(
-                vscode.Uri.joinPath(extensionUri, 'media', 'hosts', 'monitor.svg'));
-            
-            // Use section color for Docker icon with inline style
-            sectionIcon = `
-                <span class="section-icon-wrapper theme-colored-icon-wrapper dark-theme-only" style="--icon-src: url('${sshIconPath}'); width: 18px; height: 18px; display: inline-block;">
-                    <span class="section-icon theme-colored-svg" style="width: 18px; height: 18px; background-color: ${sectionIconColor};"></span>
-                </span>`;
+          lucideIconName = 'server';
       }
+      
+      // Use Lucide icons for section titles - works in all themes
+      sectionIcon = `
+          <i data-lucide="${lucideIconName}" class="lucide-icon" style="width: 18px; height: 18px; color: ${sectionIconColor}; stroke-width: 2;"></i>`;
       
       return `
           <h2 class="section-title ${sectionType}-section-title" style="border-bottom-color: ${sectionIconColor};">
