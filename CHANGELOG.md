@@ -2,6 +2,11 @@
 
 All notable changes to the DaSSHboard extension will be documented in this file.
 
+## [2.1.6] - 2026-06-15
+
+### Fixed
+- **Host card hover borders**: Host cards now show no border by default; on hover, the thick left border and thin all-round border appear together and stay visible for the duration of the hover.
+
 ## [2.1.1] - 2026-01-16
 
 ### Fixed
